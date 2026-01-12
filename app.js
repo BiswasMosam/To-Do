@@ -6,9 +6,20 @@ class TodoApp {
         this.currentStatus = 'not-started';
         this.currentGroup = null;
         this.editingTaskId = null;
+        this.token = localStorage.getItem('token');
+        this.user = this.safeParseJson(localStorage.getItem('user')) || {};
         this.loadFromStorage();
         this.initializeElements();
         this.render();
+    }
+
+    safeParseJson(value) {
+        if (!value) return null;
+        try {
+            return JSON.parse(value);
+        } catch {
+            return null;
+        }
     }
 
     // Initialize DOM elements
@@ -25,6 +36,37 @@ class TodoApp {
         // Optional standalone group modal (still present in index.html)
         this.groupModal = document.getElementById('groupModal');
         this.groupInput = document.getElementById('groupInput');
+
+        // Optional profile display (present in index.html)
+        this.updateProfileDisplay();
+    }
+
+    // Update profile display based on localStorage (token/user)
+    updateProfileDisplay() {
+        const profileSection = document.getElementById('profileSection');
+        const signinPrompt = document.getElementById('signinPrompt');
+        if (!profileSection || !signinPrompt) {
+            return;
+        }
+
+        const user = this.user || {};
+        const isLoggedIn = Boolean(user && user.username);
+
+        if (isLoggedIn) {
+            profileSection.style.display = 'block';
+            signinPrompt.style.display = 'none';
+
+            const profileName = document.getElementById('profileName');
+            const profileEmail = document.getElementById('profileEmail');
+            const profileAvatar = document.getElementById('profileAvatar');
+
+            if (profileName) profileName.textContent = user.username;
+            if (profileEmail) profileEmail.textContent = user.email || 'Signed in';
+            if (profileAvatar) profileAvatar.textContent = user.username.charAt(0).toUpperCase();
+        } else {
+            profileSection.style.display = 'none';
+            signinPrompt.style.display = 'block';
+        }
     }
 
     // Add a new group
@@ -436,3 +478,19 @@ document.addEventListener('DOMContentLoaded', () => {
         app.closeGroupModal();
     });
 });
+
+// Logout helper for the sidebar profile UI
+function logout() {
+    if (!confirm('Are you sure you want to logout?')) {
+        return;
+    }
+
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+
+    if (typeof app !== 'undefined' && app) {
+        app.token = null;
+        app.user = {};
+        app.updateProfileDisplay?.();
+    }
+}

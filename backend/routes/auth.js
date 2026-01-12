@@ -1,8 +1,35 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { OAuth2Client } = require('google-auth-library');
 
 const router = express.Router();
+
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClient = googleClientId ? new OAuth2Client(googleClientId) : null;
+
+function normalizeUsername(input) {
+  const raw = String(input || '').trim();
+  const cleaned = raw
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9_]/g, '')
+    .slice(0, 20);
+  return cleaned || 'user';
+}
+
+async function ensureUniqueUsername(base) {
+  let candidate = base;
+  let suffix = 0;
+  while (await User.exists({ username: candidate })) {
+    suffix += 1;
+    candidate = `${base}${suffix}`.slice(0, 30);
+    if (suffix > 9999) {
+      throw new Error('Unable to generate unique username');
+    }
+  }
+  return candidate;
+}
 
 // Register
 router.post('/register', async (req, res) => {
@@ -47,6 +74,10 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    if (user.provider === 'google' && !user.password) {
+      return res.status(401).json({ message: 'This account uses Google sign-in' });
+    }
+
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -58,6 +89,80 @@ router.post('/login', async (req, res) => {
       message: 'Login successful',
       token,
       user: { id: user._id, username: user.username, email: user.email }
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Google Sign-In (ID token)
+router.post('/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    if (!googleClientId || !googleClient) {
+      return res.status(500).json({ message: 'Google auth is not configured (missing GOOGLE_CLIENT_ID)' });
+    }
+
+    if (!credential) {
+      return res.status(400).json({ message: 'Credential required' });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: googleClientId
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload || !payload.sub || !payload.email) {
+      return res.status(401).json({ message: 'Invalid Google credential' });
+    }
+
+    const googleId = payload.sub;
+    const email = String(payload.email).toLowerCase();
+    const name = payload.name || email.split('@')[0];
+    const picture = payload.picture;
+
+    // Find existing user by email
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      const base = normalizeUsername(name);
+      const username = await ensureUniqueUsername(base);
+      user = new User({
+        username,
+        email,
+        provider: 'google',
+        googleId,
+        picture
+      });
+      await user.save();
+    } else {
+      // Link/refresh Google fields
+      let changed = false;
+      if (!user.googleId) {
+        user.googleId = googleId;
+        changed = true;
+      }
+      if (user.provider !== 'google' && !user.password) {
+        user.provider = 'google';
+        changed = true;
+      }
+      if (picture && user.picture !== picture) {
+        user.picture = picture;
+        changed = true;
+      }
+      if (changed) {
+        await user.save();
+      }
+    }
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({
+      message: 'Google login successful',
+      token,
+      user: { id: user._id, username: user.username, email: user.email, picture: user.picture }
     });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

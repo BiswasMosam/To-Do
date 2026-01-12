@@ -81,6 +81,36 @@
             margin-top: 25px;
         }
 
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 18px 0;
+            color: #777;
+            font-size: 12px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            height: 1px;
+            background: #333;
+            flex: 1;
+        }
+
+        .google-wrap {
+            display: flex;
+            justify-content: center;
+        }
+
+        .google-hint {
+            margin-top: 10px;
+            text-align: center;
+            color: #777;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
         button {
             flex: 1;
             padding: 12px;
@@ -171,6 +201,14 @@
                 <button class="login-btn" onclick="login()">Login</button>
             </div>
 
+            <div class="divider">OR</div>
+            <div class="google-wrap">
+                <div id="googleSignInButton"></div>
+            </div>
+            <div class="google-hint" id="googleHint" style="display:none;">
+                Google sign-in needs a configured Client ID and a hosted origin (use `http://localhost:8000`, not `file:///`).
+            </div>
+
             <div class="toggle-form">
                 Don't have an account? <a onclick="toggleForms()">Register</a>
             </div>
@@ -210,6 +248,8 @@
 
     <script>
         const API_URL = 'http://localhost:5000/api'; // Change to your backend URL
+        // TODO: Replace with your Google OAuth Web Client ID
+        const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
 
         function toggleForms() {
             document.getElementById('loginForm').style.display = 
@@ -262,6 +302,66 @@
             } catch (err) {
                 document.getElementById('loginMessage').innerHTML = 
                     `<div class="error">Connection error: ${err.message}</div>`;
+            }
+        }
+
+        async function handleGoogleCredential(credential) {
+            try {
+                const response = await fetch(`${API_URL}/auth/google`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    document.getElementById('loginMessage').innerHTML =
+                        `<div class="error">${data.message || 'Google login failed'}</div>`;
+                    return;
+                }
+
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                window.location.href = 'board.html';
+            } catch (err) {
+                document.getElementById('loginMessage').innerHTML =
+                    `<div class="error">Connection error: ${err.message}</div>`;
+            }
+        }
+
+        function initGoogleSignIn() {
+            const hint = document.getElementById('googleHint');
+            const isPlaceholder = !GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith('YOUR_GOOGLE_CLIENT_ID');
+
+            if (isPlaceholder) {
+                hint.style.display = 'block';
+                return;
+            }
+
+            if (!window.google || !google.accounts || !google.accounts.id) {
+                // GIS script not ready yet
+                return;
+            }
+
+            google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: (response) => {
+                    if (response && response.credential) {
+                        handleGoogleCredential(response.credential);
+                    }
+                }
+            });
+
+            const buttonEl = document.getElementById('googleSignInButton');
+            if (buttonEl) {
+                google.accounts.id.renderButton(buttonEl, {
+                    theme: 'outline',
+                    size: 'large',
+                    text: 'continue_with',
+                    shape: 'rectangular',
+                    width: 320
+                });
             }
         }
 
@@ -325,6 +425,20 @@
                 }
             }
         });
+
+        // Initialize Google Sign-In after GIS loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const retry = () => {
+                initGoogleSignIn();
+                if (!window.google || !google.accounts || !google.accounts.id) {
+                    setTimeout(retry, 100);
+                }
+            };
+            retry();
+        });
     </script>
+
+    <!-- Google Identity Services (Sign in with Google) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </body>
 </html>

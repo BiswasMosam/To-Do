@@ -16,7 +16,22 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true
+    required: function () {
+      return this.provider !== 'google';
+    }
+  },
+  provider: {
+    type: String,
+    enum: ['local', 'google'],
+    default: 'local'
+  },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  picture: {
+    type: String
   },
   createdAt: {
     type: Date,
@@ -26,6 +41,7 @@ const userSchema = new mongoose.Schema({
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
+  if (!this.password) return next();
   if (!this.isModified('password')) return next();
   
   try {
@@ -39,6 +55,7 @@ userSchema.pre('save', async function(next) {
 
 // Method to compare passwords
 userSchema.methods.comparePassword = async function(enteredPassword) {
+  if (!this.password) return false;
   return await bcryptjs.compare(enteredPassword, this.password);
 };
 
