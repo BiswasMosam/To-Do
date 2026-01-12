@@ -294,28 +294,69 @@ class TodoApp {
         this.hideNewGroupInput();
     }
 
+    // Drag start handler
+    dragStart(event) {
+        const taskId = event.target.closest('.task-card')?.dataset.taskId;
+        if (taskId) {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('taskId', taskId);
+            event.target.closest('.task-card').style.opacity = '0.5';
+        }
+    }
+
+    // Drag over handler
+    dragOver(event) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+    }
+
+    // Drop handler
+    drop(event, status) {
+        event.preventDefault();
+        const taskId = event.dataTransfer.getData('taskId');
+        if (taskId) {
+            this.moveTask(taskId, status);
+        }
+    }
+
+    // Drag end handler
+    dragEnd(event) {
+        event.target.style.opacity = '1';
+    }
+
     // Render a single card
     renderCard(task) {
+        const otherStatuses = ['not-started', 'in-progress', 'done'].filter(s => s !== task.status);
+
         return `
-            <div class="card">
-                <div class="card-header">
-                    <div class="task-title">
-                        <span class="emoji">${task.emoji}</span>
-                        <span class="text">${task.text}</span>
-                    </div>
-                    <button class="delete-btn" onclick="app.deleteTask('${task._id}')">🗑️</button>
-                </div>
-                ${task.group ? `<div class="card-group">${task.group}</div>` : ''}
-                <div class="card-footer">
-                    <select onchange="app.moveTask('${task._id}', this.value)" value="${task.status}">
-                        <option value="not-started">Not Started</option>
-                        <option value="in-progress">In Progress</option>
-                        <option value="done">Done</option>
-                    </select>
-                    <button class="edit-btn" onclick="app.editTask('${task._id}')">✏️</button>
+            <div class="task-card" draggable="true" data-task-id="${task._id}" ondragstart="app.dragStart(event)" ondragend="app.dragEnd(event)" ondblclick="app.editTask('${task._id}')">
+                <span class="task-emoji">${this.escapeHtml(task.emoji)}</span>
+                <span class="task-text">${this.escapeHtml(task.text)}</span>
+                <div class="task-actions">
+                    <button class="action-btn move-${otherStatuses[0]}" onclick="app.moveTask('${task._id}', '${otherStatuses[0]}')" title="Move to ${otherStatuses[0].replace('-', ' ')}"></button>
+                    <button class="action-btn move-${otherStatuses[1]}" onclick="app.moveTask('${task._id}', '${otherStatuses[1]}')" title="Move to ${otherStatuses[1].replace('-', ' ')}"></button>
+                    <button class="action-btn delete-btn" onclick="app.deleteTask('${task._id}')" title="Delete"></button>
                 </div>
             </div>
         `;
+    }
+
+    // Escape HTML special characters
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text ?? '';
+        return div.innerHTML;
+    }
+
+    // Update counts
+    updateCounts() {
+        const notStartedCount = this.tasks.filter(t => t.status === 'not-started').length;
+        const inProgressCount = this.tasks.filter(t => t.status === 'in-progress').length;
+        const doneCount = this.tasks.filter(t => t.status === 'done').length;
+
+        document.getElementById('notStartedCount').textContent = notStartedCount.toString();
+        document.getElementById('inProgressCount').textContent = inProgressCount.toString();
+        document.getElementById('doneCount').textContent = doneCount.toString();
     }
 
     // Render all cards
@@ -325,32 +366,41 @@ class TodoApp {
 
         statuses.forEach(status => {
             const container = document.getElementById(`${statusNames[status]}Cards`);
-            const countEl = document.getElementById(`${statusNames[status]}Count`);
-            const statusTasks = this.tasks.filter(t => t.status === status);
+            if (!container) return;
 
             let html = '';
 
-            // Render ungrouped tasks
-            const ungrouped = statusTasks.filter(t => !t.group);
-            ungrouped.forEach(task => {
-                html += this.renderCard(task);
-            });
+            // Ungrouped tasks
+            const ungroupedTasks = this.tasks.filter(t => t.status === status && !t.group);
+            if (ungroupedTasks.length > 0) {
+                ungroupedTasks.forEach(task => {
+                    html += this.renderCard(task);
+                });
+            }
 
-            // Render grouped tasks
-            this.groups.forEach(group => {
-                const groupTasks = statusTasks.filter(t => t.group === group);
+            // Grouped tasks
+            this.groups.forEach(groupName => {
+                const groupTasks = this.tasks.filter(t => t.status === status && t.group === groupName);
                 if (groupTasks.length > 0) {
-                    html += `<div class="group-section"><div class="group-header">${group} (${groupTasks.length})</div>`;
-                    groupTasks.forEach(task => {
-                        html += this.renderCard(task);
-                    });
-                    html += `</div>`;
+                    html += `
+                        <div class="task-group">
+                            <div class="group-header">
+                                <span class="group-name">${this.escapeHtml(groupName)}</span>
+                            </div>
+                            <div class="group-tasks">
+                                ${groupTasks.map(task => this.renderCard(task)).join('')}
+                            </div>
+                        </div>
+                    `;
                 }
             });
 
             container.innerHTML = html;
-            countEl.textContent = statusTasks.length;
+            container.addEventListener('dragover', (e) => this.dragOver(e));
+            container.addEventListener('drop', (e) => this.drop(e, status));
         });
+
+        this.updateCounts();
     }
 }
 
