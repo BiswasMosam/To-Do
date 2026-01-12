@@ -1,5 +1,6 @@
 // Kanban Board To-Do Application (Backend Version)
-const API_URL = 'http://localhost:5000/api'; // Change to your backend URL
+// Configured via To-Do/config.js
+const API_URL = window.TODO_API_URL || 'http://localhost:5000/api';
 
 class TodoApp {
     constructor() {

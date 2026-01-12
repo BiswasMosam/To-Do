@@ -51,7 +51,10 @@ Create `.env` file:
 PORT=5000
 MONGODB_URI=mongodb+srv://your_username:your_password@cluster.mongodb.net/todo-db
 JWT_SECRET=your_super_secret_key_here
+GOOGLE_CLIENT_ID=your_google_oauth_client_id.apps.googleusercontent.com
 NODE_ENV=development
+## Optional: lock down CORS in production (comma-separated)
+## CORS_ORIGIN=https://biswasmosam.github.io,https://mosambiswas.me
 ```
 
 Start the server:
@@ -64,12 +67,11 @@ npm run dev  # with auto-reload
 
 ### 3. Frontend Setup
 
-Update API URL in:
+API URL is configured in `config.js` (single place).
 
-- `login.html` (line with `const API_URL`)
-- `app-backend.js` (line with `const API_URL`)
-
-Change from `http://localhost:5000/api` to your backend URL when deployed.
+- Local dev uses `http://localhost:5000/api`
+- Production should be set to your deployed backend URL, for example:
+	`https://YOUR-SERVICE.onrender.com/api`
 
 Then serve the frontend files:
 

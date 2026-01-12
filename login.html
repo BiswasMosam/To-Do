@@ -246,10 +246,10 @@
         </div>
     </div>
 
+    <script src="config.js"></script>
     <script>
-        const API_URL = 'http://localhost:5000/api'; // Change to your backend URL
-        // TODO: Replace with your Google OAuth Web Client ID
-        const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+        const API_URL = window.TODO_API_URL || 'http://localhost:5000/api';
+        const GOOGLE_CLIENT_ID = '367094542116-2hcm8562n7k56esnnp362c3h2igc95c0.apps.googleusercontent.com';
 
         function toggleForms() {
             document.getElementById('loginForm').style.display = 
