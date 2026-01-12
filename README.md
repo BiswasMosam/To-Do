@@ -1,68 +1,116 @@
-# To-Do Kanban Board
+# To-Do Kanban Board (Full Stack)
 
-A beautiful, interactive Kanban board for managing tasks across three workflow stages: Not Started, In Progress, and Done. Built with vanilla JavaScript.
+Live site:
+
+- https://mosambiswas.me/To-Do/
+- https://biswasmosam.github.io/To-Do/
+
+Backend (health check):
+
+- https://to-do-i8qi.onrender.com/api/health
+
+A modern Kanban board with two modes:
+
+- **Offline mode**: `index.html` + `app.js` (stores tasks in `localStorage`)
+- **Account mode**: `login.html` + `board.html` + backend API (stores tasks in MongoDB, supports Google Sign-In)
 
 ## Features
 
-- 📋 **Kanban Board**: Organize tasks in three columns (Not Started, In Progress, Done)
-- ➕ **Add Tasks**: Create new tasks with optional emoji icons
-- 🏷️ **Task Grouping**: Organize tasks into custom groups for better categorization
-- ✏️ **Edit Tasks**: Modify task names, emojis, and group assignments
-- 🗑️ **Delete Tasks**: Remove individual tasks
-- 💾 **Persistent Storage**: All tasks and groups saved in browser localStorage
-- 🎨 **Beautiful UI**: Modern dark theme with smooth animations
-- 📱 **Responsive Design**: Works perfectly on desktop and mobile
-- ⌨️ **Keyboard Shortcuts**: Press Enter to save, Escape to close modals
+- Kanban workflow: Not Started → In Progress → Done
+- Task groups + emoji support
+- Drag & drop
+- Authentication (register/login) + Google Sign-In
+- Cloud persistence (MongoDB) for logged-in users
+- Responsive UI
 
-## How to Use
+## Project Layout
 
-1. **Open the app**: Visit the live site or open `index.html` in your browser
-2. **Create a task**: Click "+ New task" in any column
-3. **Add details**: Enter task name, optional emoji, and assign to a group
-4. **Save**: Click "Save" or press Enter
-5. **Edit**: Click a task card to edit it
-6. **Delete**: Click the trash icon on a task card
-7. **Move tasks**: Drag tasks between columns (or use edit to change status)
-8. **Manage groups**: Use the "+ Group" button in the task modal to create and organize groups
+**Frontend**
 
-## File Structure
+- `index.html` / `app.js` — offline board (localStorage)
+- `login.html` — login/register + Google Sign-In
+- `board.html` / `app-backend.js` — authenticated board (API)
+- `config.js` — single place to configure the API base URL
 
+**Backend**
+
+- `backend/server.js` — Express API
+- `backend/routes/*` — auth + tasks endpoints
+
+## Local Development
+
+### 1) Backend
+
+```bash
+cd backend
+npm install
 ```
-├── index.html      # Main HTML markup
-├── app.js          # Application logic (ES6 class)
-├── styles.css      # Styling and animations
-├── app.ts          # TypeScript version (optional)
-└── README.md       # This file
+
+Create `backend/.env`:
+
+```bash
+PORT=5000
+MONGODB_URI=mongodb+srv://<db_user>:<db_password>@<cluster-host>/todo-db?retryWrites=true&w=majority
+JWT_SECRET=<any-long-random-string>
+GOOGLE_CLIENT_ID=<your-google-web-client-id>.apps.googleusercontent.com
+NODE_ENV=development
 ```
 
-## Technologies Used
+Start the API:
 
-- **HTML5**: Semantic markup
-- **CSS3**: Flexbox, Grid, Dark theme with modern colors
-- **JavaScript (ES6)**: Object-oriented programming with classes
-- **localStorage**: Persistent client-side data storage
+```bash
+npm run dev
+# or
+npm start
+```
 
-## Data Storage
+### 2) Frontend
 
-All tasks and groups are saved to the browser's localStorage. This means:
+Serve the folder (recommended):
 
-- ✅ Data persists between sessions
-- ✅ Each browser/device has its own board
-- ℹ️ Clearing browser data will remove tasks
+```bash
+python -m http.server 8000
+```
 
-## Browser Compatibility
+- Offline board: `http://localhost:8000/index.html`
+- Login + backend board: `http://localhost:8000/login.html`
 
-Works in all modern browsers supporting:
+## Deployment
 
-- ES6 Classes
-- localStorage API
-- CSS Grid & Flexbox
+### Backend (Render)
 
-## Live Demo
+1. Deploy `backend/` as a Render Web Service
+2. Set environment variables:
+   - `MONGODB_URI`
+   - `JWT_SECRET`
+   - `GOOGLE_CLIENT_ID`
+   - `CORS_ORIGIN=https://biswasmosam.github.io,https://mosambiswas.me`
 
-Visit the app online:
-🔗 **[https://biswasmosam.github.io/To-Do/](https://biswasmosam.github.io/To-Do/)**
+### Frontend (GitHub Pages / Custom Domain)
 
-- CSS3 Flexbox and Gradients
+Update `config.js` to point production to your backend:
 
-Enjoy managing your tasks! 📝
+- `https://to-do-i8qi.onrender.com/api`
+
+Then push to `main` so GitHub Pages publishes it.
+
+## API (Quick Reference)
+
+Auth:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/google`
+
+Tasks (JWT required):
+
+- `GET /api/tasks`
+- `POST /api/tasks`
+- `PUT /api/tasks/:id`
+- `DELETE /api/tasks/:id`
+
+## Security Notes
+
+- Never commit real secrets (`.env` is ignored)
+- Use a strong `JWT_SECRET`
+- Keep MongoDB Network Access restricted in production (avoid `0.0.0.0/0` long-term)
