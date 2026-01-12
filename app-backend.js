@@ -34,8 +34,36 @@ class TodoApp {
         this.groupModal = document.getElementById('groupModal');
         this.groupInput = document.getElementById('groupInput');
 
-        // Display username
-        document.getElementById('username').textContent = this.user.username || 'User';
+        // Initialize profile display
+        this.updateProfileDisplay();
+    }
+
+    // Update profile display
+    updateProfileDisplay() {
+        const profileSection = document.getElementById('profileSection');
+        const signinPrompt = document.getElementById('signinPrompt');
+        
+        if (this.user && this.user.username) {
+            // User is logged in - show profile
+            profileSection.style.display = 'block';
+            signinPrompt.style.display = 'none';
+            
+            // Update profile info
+            const profileName = document.getElementById('profileName');
+            const profileEmail = document.getElementById('profileEmail');
+            const profileAvatar = document.getElementById('profileAvatar');
+            
+            profileName.textContent = this.user.username;
+            profileEmail.textContent = this.user.email || 'user@example.com';
+            
+            // Set avatar initial (first letter of username)
+            const initial = this.user.username.charAt(0).toUpperCase();
+            profileAvatar.textContent = initial;
+        } else {
+            // User is not logged in - show sign in prompt
+            profileSection.style.display = 'none';
+            signinPrompt.style.display = 'block';
+        }
     }
 
     // Load tasks from backend
