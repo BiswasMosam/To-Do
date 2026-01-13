@@ -221,6 +221,8 @@
 
             <div id="loginMessage"></div>
 
+            <div class="google-hint" id="apiHint" style="display:none;"></div>
+
             <div class="form-buttons">
                 <button class="login-btn" onclick="login()">Login</button>
             </div>
@@ -324,8 +326,13 @@
                 // Redirect to board
                 window.location.href = 'board.html';
             } catch (err) {
+                const apiHint = document.getElementById('apiHint');
+                if (apiHint) {
+                    apiHint.style.display = 'block';
+                    apiHint.textContent = `API: ${API_URL}`;
+                }
                 document.getElementById('loginMessage').innerHTML = 
-                    `<div class="error">Connection error: ${err.message}</div>`;
+                    `<div class="error">Connection error: ${err.message}${err.message === 'Failed to fetch' ? '<br/>Tip: check if your network/Private DNS/adblock blocks onrender.com. Try opening /api/health directly.' : ''}</div>`;
             }
         }
 
@@ -349,8 +356,36 @@
                 localStorage.setItem('user', JSON.stringify(data.user));
                 window.location.href = 'board.html';
             } catch (err) {
+                const apiHint = document.getElementById('apiHint');
+                if (apiHint) {
+                    apiHint.style.display = 'block';
+                    apiHint.textContent = `API: ${API_URL}`;
+                }
                 document.getElementById('loginMessage').innerHTML =
-                    `<div class="error">Connection error: ${err.message}</div>`;
+                    `<div class="error">Connection error: ${err.message}${err.message === 'Failed to fetch' ? '<br/>Tip: check if your network/Private DNS/adblock blocks onrender.com. Try opening /api/health directly.' : ''}</div>`;
+            }
+        }
+
+        async function testBackendConnection() {
+            const apiHint = document.getElementById('apiHint');
+            const msg = document.getElementById('loginMessage');
+            if (apiHint) {
+                apiHint.style.display = 'block';
+                apiHint.textContent = `API: ${API_URL}`;
+            }
+            if (msg) {
+                msg.innerHTML = '<div class="success">Testing backend connection...</div>';
+            }
+            try {
+                const res = await fetch(`${API_URL}/health`, { method: 'GET' });
+                const text = await res.text();
+                if (!res.ok) {
+                    if (msg) msg.innerHTML = `<div class="error">Health check failed (${res.status}).</div>`;
+                    return;
+                }
+                if (msg) msg.innerHTML = `<div class="success">Backend reachable. ${text}</div>`;
+            } catch (err) {
+                if (msg) msg.innerHTML = `<div class="error">Health check error: ${err.message}</div>`;
             }
         }
 
@@ -452,6 +487,8 @@
 
         // Initialize Google Sign-In after GIS loads
         document.addEventListener('DOMContentLoaded', () => {
+            // Quick connection check helps debug mobile/network issues
+            testBackendConnection();
             const retry = () => {
                 initGoogleSignIn();
                 if (!window.google || !google.accounts || !google.accounts.id) {
