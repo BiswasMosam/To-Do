@@ -189,7 +189,17 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script>
+        // Force redirect to login if not signed in
+        if (!localStorage.getItem('token')) {
+            window.location.href = 'login.html';
+        } else {
+            // Load the backend application script
+            const script = document.createElement('script');
+            script.src = 'app-backend.js';
+            document.body.appendChild(script);
+        }
+    </script>
 </body>
 </html>
 <!--

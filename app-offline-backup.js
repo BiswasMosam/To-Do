@@ -1,17 +1,14 @@
-// Kanban Board To-Do Application (Backend Version)
-// Configured via To-Do/config.js
-const API_URL = window.TODO_API_URL || 'http://localhost:5000/api';
-
+// Kanban Board To-Do Application
 class TodoApp {
     constructor() {
         this.tasks = [];
-        this.groups = [];
+        this.groups = []; // Universal groups for all columns
         this.currentStatus = 'not-started';
         this.currentGroup = null;
         this.editingTaskId = null;
         this.token = localStorage.getItem('token');
-        this.user = JSON.parse(localStorage.getItem('user') || '{}');
-
+        this.user = this.safeParseJson(localStorage.getItem('user')) || {};
+        
         // Workflow-specific properties
         this.workflowTasks = [];
         this.connections = [];
@@ -20,16 +17,20 @@ class TodoApp {
         this.connectionSource = null;
         this.draggedTask = null;
         this.editingWorkflowTaskId = null;
-
-        // Redirect to login if no token
-        if (!this.token) {
-            window.location.href = 'login.html';
-            return;
-        }
-
+        
+        this.loadFromStorage();
         this.initializeElements();
-        this.loadTasks();
+        this.render();
         this.initializeWorkflowEventListeners();
+    }
+
+    safeParseJson(value) {
+        if (!value) return null;
+        try {
+            return JSON.parse(value);
+        } catch {
+            return null;
+        }
     }
 
     // Initialize DOM elements
@@ -42,110 +43,97 @@ class TodoApp {
         this.newGroupBtn = document.getElementById('newGroupBtn');
         this.newGroupInput = document.getElementById('newGroupInput');
         this.newGroupName = document.getElementById('newGroupName');
+
+        // Optional standalone group modal (still present in index.html)
         this.groupModal = document.getElementById('groupModal');
         this.groupInput = document.getElementById('groupInput');
 
-        // Initialize profile display
+        // Optional profile display (present in index.html)
         this.updateProfileDisplay();
     }
 
-    // Update profile display
+    // Update profile display based on localStorage (token/user)
     updateProfileDisplay() {
         const profileSection = document.getElementById('profileSection');
         const signinPrompt = document.getElementById('signinPrompt');
-        
-        if (this.user && this.user.username) {
-            // User is logged in - show profile
+        if (!profileSection || !signinPrompt) {
+            return;
+        }
+
+        const user = this.user || {};
+        const isLoggedIn = Boolean(user && user.username);
+
+        if (isLoggedIn) {
             profileSection.style.display = 'block';
             signinPrompt.style.display = 'none';
-            
-            // Update profile info
+
             const profileName = document.getElementById('profileName');
             const profileEmail = document.getElementById('profileEmail');
             const profileAvatar = document.getElementById('profileAvatar');
-            
-            profileName.textContent = this.user.username;
-            profileEmail.textContent = this.user.email || 'user@example.com';
-            
-            // Set avatar initial (first letter of username)
-            const initial = this.user.username.charAt(0).toUpperCase();
-            profileAvatar.textContent = initial;
+
+            if (profileName) profileName.textContent = user.username;
+            if (profileEmail) profileEmail.textContent = user.email || 'Signed in';
+            if (profileAvatar) profileAvatar.textContent = user.username.charAt(0).toUpperCase();
         } else {
-            // User is not logged in - show sign in prompt
             profileSection.style.display = 'none';
             signinPrompt.style.display = 'block';
         }
     }
 
-    // Load tasks from backend
-    async loadTasks() {
-        try {
-            const [tasksRes, workflowRes] = await Promise.all([
-                fetch(`${API_URL}/tasks`, {
-                    headers: { 'Authorization': `Bearer ${this.token}` }
-                }),
-                fetch(`${API_URL}/workflow`, {
-                    headers: { 'Authorization': `Bearer ${this.token}` }
-                })
-            ]);
-
-            if (tasksRes.status === 401 || workflowRes.status === 401) {
-                this.logout();
-                return;
-            }
-
-            if (tasksRes.ok) {
-                this.tasks = await tasksRes.json();
-                this.extractGroups();
-            }
-            
-            if (workflowRes.ok) {
-                const workflowData = await workflowRes.json();
-                this.workflowTasks = workflowData.tasks || [];
-                this.connections = workflowData.connections || [];
-            }
-            
-            this.render();
-            if (this.currentView === 'workflow') {
-                this.renderWorkflowCanvas();
-            }
-        } catch (err) {
-            console.error('Error loading data:', err);
-            alert('Failed to load data. Check backend connection.');
+    // Add a new group
+    addNewGroup(status) {
+        this.currentStatus = status;
+        if (!this.groupModal || !this.groupInput) {
+            return;
         }
+
+        this.groupInput.value = '';
+        this.groupModal.classList.add('active');
+        this.groupInput.focus();
     }
 
-    // Save workflow to storage
-    async saveToStorage() {
-        try {
-            await fetch(`${API_URL}/workflow`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.token}`
-                },
-                body: JSON.stringify({
-                    tasks: this.workflowTasks,
-                    connections: this.connections
-                })
+    // Save new group
+    saveGroup() {
+        if (!this.groupInput) {
+            return;
+        }
+
+        const groupName = this.groupInput.value.trim();
+        
+        if (!groupName) {
+            alert('Please enter a group name!');
+            return;
+        }
+
+        if (this.groups.includes(groupName)) {
+            alert('This group already exists!');
+            return;
+        }
+
+        this.groups.push(groupName);
+        this.saveToStorage();
+        this.updateGroupSelect();
+        this.closeGroupModal();
+        this.render();
+    }
+
+    closeGroupModal() {
+        this.groupModal?.classList.remove('active');
+    }
+
+    // Delete a group
+    deleteGroup(groupName) {
+        if (confirm(`Delete group "${groupName}" and move all tasks to ungrouped?`)) {
+            // Move all tasks in this group to no group
+            this.tasks.forEach(task => {
+                if (task.group === groupName) {
+                    task.group = null;
+                }
             });
-        } catch (err) {
-            console.error('Error saving workflow:', err);
+            this.groups = this.groups.filter(g => g !== groupName);
+            this.saveToStorage();
+            this.render();
         }
-    }
-
-    // Load tasks from storage (No-op in backend mode as we use loadTasks)
-    loadFromStorage() {
-        // Data is loaded via loadTasks() from server
-    }
-
-    // Extract unique groups from tasks
-    extractGroups() {
-        const groupSet = new Set();
-        this.tasks.forEach(task => {
-            if (task.group) groupSet.add(task.group);
-        });
-        this.groups = Array.from(groupSet);
     }
 
     // Add a new task
@@ -190,10 +178,10 @@ class TodoApp {
         this.newGroupName.value = '';
     }
 
-    // Create new group
+    // Create new group from modal
     createNewGroup() {
         const groupName = this.newGroupName.value.trim();
-
+        
         if (!groupName) {
             alert('Please enter a group name!');
             return;
@@ -204,6 +192,7 @@ class TodoApp {
             this.updateGroupSelect();
             this.groupSelect.value = groupName;
             this.hideNewGroupInput();
+            this.saveToStorage();
         } else {
             alert('This group already exists!');
         }
@@ -211,7 +200,7 @@ class TodoApp {
 
     // Edit a task
     editTask(id) {
-        const task = this.tasks.find(t => t._id === id);
+        const task = this.tasks.find(t => t.id === id);
         if (task) {
             this.editingTaskId = id;
             this.currentStatus = task.status;
@@ -232,108 +221,57 @@ class TodoApp {
     }
 
     // Save task (add or edit)
-    async saveTask() {
+    saveTask() {
         const text = this.taskInput.value.trim();
         const groupValue = this.groupSelect.value || null;
-
+        
         if (!text) {
             alert('Please enter a task name!');
             return;
         }
 
-        try {
-            if (this.editingTaskId !== null) {
-                // Edit existing task
-                const response = await fetch(`${API_URL}/tasks/${this.editingTaskId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${this.token}`
-                    },
-                    body: JSON.stringify({
-                        text,
-                        emoji: this.taskEmoji.value.trim(),
-                        status: this.currentStatus,
-                        group: groupValue
-                    })
-                });
-
-                if (response.ok) {
-                    this.loadTasks();
-                } else {
-                    alert('Failed to update task');
-                }
-            } else {
-                // Add new task
-                const response = await fetch(`${API_URL}/tasks`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${this.token}`
-                    },
-                    body: JSON.stringify({
-                        text,
-                        emoji: this.taskEmoji.value.trim() || '📝',
-                        status: this.currentStatus,
-                        group: groupValue
-                    })
-                });
-
-                if (response.ok) {
-                    this.loadTasks();
-                } else {
-                    alert('Failed to create task');
-                }
+        if (this.editingTaskId !== null) {
+            // Edit existing task
+            const task = this.tasks.find(t => t.id === this.editingTaskId);
+            if (task) {
+                task.text = text;
+                task.emoji = this.taskEmoji.value.trim();
+                task.group = groupValue;
             }
+        } else {
+            // Add new task
+            const task = {
+                id: Date.now(),
+                text: text,
+                emoji: this.taskEmoji.value.trim() || '📝',
+                status: this.currentStatus,
+                group: groupValue,
+                createdAt: new Date()
+            };
+            this.tasks.push(task);
+        }
 
-            this.closeModal();
-        } catch (err) {
-            console.error('Error saving task:', err);
-            alert('Error saving task');
+        this.saveToStorage();
+        this.render();
+        this.closeModal();
+    }
+
+    // Move task to different status
+    moveTask(id, newStatus) {
+        const task = this.tasks.find(t => t.id === id);
+        if (task) {
+            task.status = newStatus;
+            this.saveToStorage();
+            this.render();
         }
     }
 
     // Delete a task
-    async deleteTask(id) {
+    deleteTask(id) {
         if (confirm('Delete this task?')) {
-            try {
-                const response = await fetch(`${API_URL}/tasks/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${this.token}` }
-                });
-
-                if (response.ok) {
-                    this.loadTasks();
-                } else {
-                    alert('Failed to delete task');
-                }
-            } catch (err) {
-                console.error('Error deleting task:', err);
-                alert('Error deleting task');
-            }
-        }
-    }
-
-    // Move task to different status
-    async moveTask(id, newStatus) {
-        const task = this.tasks.find(t => t._id === id);
-        if (task) {
-            try {
-                const response = await fetch(`${API_URL}/tasks/${id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${this.token}`
-                    },
-                    body: JSON.stringify({ status: newStatus })
-                });
-
-                if (response.ok) {
-                    this.loadTasks();
-                }
-            } catch (err) {
-                console.error('Error moving task:', err);
-            }
+            this.tasks = this.tasks.filter(t => t.id !== id);
+            this.saveToStorage();
+            this.render();
         }
     }
 
@@ -342,6 +280,118 @@ class TodoApp {
         this.modal.classList.remove('active');
         this.editingTaskId = null;
         this.hideNewGroupInput();
+    }
+
+    // Get tasks by status and group
+    getTasksByStatusAndGroup(status, group = null) {
+        return this.tasks.filter(t => t.status === status && t.group === group);
+    }
+
+    // Render a single card
+    renderCard(task) {
+        const otherStatuses = ['not-started', 'in-progress', 'done'].filter(s => s !== task.status);
+        
+        return `
+            <div class="task-card" draggable="true" data-task-id="${task.id}" ondragstart="app.dragStart(event)" ondragend="app.dragEnd(event)" ondblclick="app.editTask(${task.id})">
+                <span class="task-emoji">${this.escapeHtml(task.emoji)}</span>
+                <span class="task-text">${this.escapeHtml(task.text)}</span>
+                <div class="task-actions">
+                    <button class="action-btn move-${otherStatuses[0]}" onclick="app.moveTask(${task.id}, '${otherStatuses[0]}')", title="Move to ${otherStatuses[0].replace('-', ' ')}"></button>
+                    <button class="action-btn move-${otherStatuses[1]}" onclick="app.moveTask(${task.id}, '${otherStatuses[1]}')", title="Move to ${otherStatuses[1].replace('-', ' ')}"></button>
+                    <button class="action-btn delete-btn" onclick="app.deleteTask(${task.id})" title="Delete"></button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Get status icon
+    getStatusIcon(status) {
+        switch (status) {
+            case 'not-started': return '←';
+            case 'in-progress': return '→';
+            case 'done': return '✓';
+            default: return '→';
+        }
+    }
+
+    // Render all cards
+    render() {
+        const statuses = ['not-started', 'in-progress', 'done'];
+        
+        statuses.forEach(status => {
+            const columnId = status === 'not-started' ? 'notStartedCards' : 
+                            status === 'in-progress' ? 'inProgressCards' : 'doneCards';
+            const container = document.getElementById(columnId);
+            
+            if (container) {
+                let html = '';
+                
+                // Render ungrouped tasks
+                const ungroupedTasks = this.getTasksByStatusAndGroup(status, null);
+                if (ungroupedTasks.length > 0) {
+                    ungroupedTasks.forEach(task => {
+                        html += this.renderCard(task);
+                    });
+                }
+                
+                // Render grouped tasks
+                this.groups.forEach(groupName => {
+                    const groupTasks = this.getTasksByStatusAndGroup(status, groupName);
+                    if (groupTasks.length > 0) {
+                        html += `
+                            <div class="task-group">
+                                <div class="group-header">
+                                    <span class="group-name">${this.escapeHtml(groupName)}</span>
+                                    <button class="group-delete-btn" onclick="app.deleteGroup('${groupName.replace(/'/g, "\\'")}');" title="Delete group"></button>
+                                </div>
+                                <div class="group-tasks">
+                                    ${groupTasks.map(task => this.renderCard(task)).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+                
+                container.innerHTML = html;
+                // Add drag over listener to container
+                container.addEventListener('dragover', (e) => this.dragOver(e));
+                container.addEventListener('drop', (e) => this.drop(e, status));
+            }
+        });
+
+        this.updateCounts();
+    }
+
+    // Update counts
+    updateCounts() {
+        const notStartedCount = this.tasks.filter(t => t.status === 'not-started').length;
+        const inProgressCount = this.tasks.filter(t => t.status === 'in-progress').length;
+        const doneCount = this.tasks.filter(t => t.status === 'done').length;
+
+        document.getElementById('notStartedCount').textContent = notStartedCount.toString();
+        document.getElementById('inProgressCount').textContent = inProgressCount.toString();
+        document.getElementById('doneCount').textContent = doneCount.toString();
+    }
+
+    // Escape HTML special characters
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Save tasks to localStorage
+    saveToStorage() {
+        localStorage.setItem('kanban-tasks', JSON.stringify(this.tasks));
+        localStorage.setItem('kanban-groups', JSON.stringify(this.groups));
+    }
+
+    // Load tasks from localStorage
+    loadFromStorage() {
+        const stored = localStorage.getItem('kanban-tasks');
+        const storedGroups = localStorage.getItem('kanban-groups');
+        this.tasks = stored ? JSON.parse(stored) : [];
+        this.groups = storedGroups ? JSON.parse(storedGroups) : [];
     }
 
     // Drag start handler
@@ -365,7 +415,7 @@ class TodoApp {
         event.preventDefault();
         const taskId = event.dataTransfer.getData('taskId');
         if (taskId) {
-            this.moveTask(taskId, status);
+            this.moveTask(parseInt(taskId), status);
         }
     }
 
@@ -373,117 +423,27 @@ class TodoApp {
     dragEnd(event) {
         event.target.style.opacity = '1';
     }
-
-    // Render a single card
-    renderCard(task) {
-        const otherStatuses = ['not-started', 'in-progress', 'done'].filter(s => s !== task.status);
-
-        return `
-            <div class="task-card" draggable="true" data-task-id="${task._id}" ondragstart="app.dragStart(event)" ondragend="app.dragEnd(event)" ondblclick="app.editTask('${task._id}')">
-                <span class="task-emoji">${this.escapeHtml(task.emoji)}</span>
-                <span class="task-text">${this.escapeHtml(task.text)}</span>
-                <div class="task-actions">
-                    <button class="action-btn move-${otherStatuses[0]}" onclick="app.moveTask('${task._id}', '${otherStatuses[0]}')" title="Move to ${otherStatuses[0].replace('-', ' ')}"></button>
-                    <button class="action-btn move-${otherStatuses[1]}" onclick="app.moveTask('${task._id}', '${otherStatuses[1]}')" title="Move to ${otherStatuses[1].replace('-', ' ')}"></button>
-                    <button class="action-btn delete-btn" onclick="app.deleteTask('${task._id}')" title="Delete"></button>
-                </div>
-            </div>
-        `;
-    }
-
-    // Escape HTML special characters
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text ?? '';
-        return div.innerHTML;
-    }
-
-    // Update counts
-    updateCounts() {
-        const notStartedCount = this.tasks.filter(t => t.status === 'not-started').length;
-        const inProgressCount = this.tasks.filter(t => t.status === 'in-progress').length;
-        const doneCount = this.tasks.filter(t => t.status === 'done').length;
-
-        document.getElementById('notStartedCount').textContent = notStartedCount.toString();
-        document.getElementById('inProgressCount').textContent = inProgressCount.toString();
-        document.getElementById('doneCount').textContent = doneCount.toString();
-    }
-
-    // Render all cards
-    render() {
-        const statuses = ['not-started', 'in-progress', 'done'];
-        const statusNames = { 'not-started': 'notStarted', 'in-progress': 'inProgress', 'done': 'done' };
-
-        statuses.forEach(status => {
-            const container = document.getElementById(`${statusNames[status]}Cards`);
-            if (!container) return;
-
-            let html = '';
-
-            // Ungrouped tasks
-            const ungroupedTasks = this.tasks.filter(t => t.status === status && !t.group);
-            if (ungroupedTasks.length > 0) {
-                ungroupedTasks.forEach(task => {
-                    html += this.renderCard(task);
-                });
-            }
-
-            // Grouped tasks
-            this.groups.forEach(groupName => {
-                const groupTasks = this.tasks.filter(t => t.status === status && t.group === groupName);
-                if (groupTasks.length > 0) {
-                    html += `
-                        <div class="task-group">
-                            <div class="group-header">
-                                <span class="group-name">${this.escapeHtml(groupName)}</span>
-                            </div>
-                            <div class="group-tasks">
-                                ${groupTasks.map(task => this.renderCard(task)).join('')}
-                            </div>
-                        </div>
-                    `;
-                }
-            });
-
-            container.innerHTML = html;
-            container.addEventListener('dragover', (e) => this.dragOver(e));
-            container.addEventListener('drop', (e) => this.drop(e, status));
-        });
-
-        this.updateCounts();
-    }
-}
-
-// Logout function
-function logout() {
-    if (confirm('Are you sure you want to logout?')) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = 'login.html';
-    }
 }
 
 // Initialize the app when DOM is ready
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new TodoApp();
-
-    if (!app.token) return; // Exit if no token
-
+    
     // Close modal on escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             app.closeModal();
         }
     });
-
+    
     // Close modal when clicking outside
     document.getElementById('taskModal')?.addEventListener('click', (e) => {
         if (e.target === document.getElementById('taskModal')) {
             app.closeModal();
         }
     });
-
+    
     // Submit on Enter key
     document.getElementById('taskInput')?.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
@@ -519,56 +479,32 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cancelGroupBtn')?.addEventListener('click', () => {
         app.hideNewGroupInput();
     });
+
+    // Standalone group modal (optional)
+    document.getElementById('saveGroupModalBtn')?.addEventListener('click', () => {
+        app.saveGroup();
+    });
+
+    document.getElementById('cancelGroupModalBtn')?.addEventListener('click', () => {
+        app.closeGroupModal();
+    });
 });
 
-/*
+// Logout helper for the sidebar profile UI
+function logout() {
+    if (!confirm('Are you sure you want to logout?')) {
+        return;
+    }
 
-                              ::::::::::::::::::::                              
-                        -::::::::::::::::::::::::::::::-                        
-                     ::::::::::::::::::::::::::::::::::::::-                    
-                  :::::-+%@@+::::::::::::::::::::::-%#+-::::::-                 
-               :::::=%@@@@@@@-:::::::::::::::::::::%@@@@@%=:::::-               
-             :::::#@@@@@@@@#::::-*%@@@@@@@@@@@*-:::*@@@@@@@@@=::::-             
-           ::::-%@@@@@@@@=:::*@@@@@@@@@@@@@@@@@@@@*:::#@@@@@@@@+::::-           
-         :::::#@@@@@@@@+::-%@@@@@@@@@@@@@@@@@@@@@@@@%-:-#@@@@@@@@+::::=         
-        ::::+@@@@@@@@%-:-%@@@@@@@@@@@@@@@@@@@@@@@@@@@@%-:=%@@@@@@@%-:::-        
-       ::::*@@@@@@@@*::+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+::#@@@@@@@@+::::+      
-     ::::-%@@@@@@@@*::*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*::%@@@@@@@@#::::=     
-    :::::%@@@@@@@@#::+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+::#@@@@@@@@#::::=    
-    ::::%@@@@@@@@@-:=@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@=:=@@@@@@@@@#::::@   
-   ::::*@@@@@@@@@*::*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#::*@@@@@@@@@+::::+  
-  ::::+@@@@@@@@@@-::%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%::-@@@@@@@@@@=:::-  
- :::::%@@@@@@@@@%-::@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-::%@@@@@@@@@#::::+ 
- ::::+@@@@@@@@@@%-::@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@:::%@@@@@@@@@@=:::: 
-:::::@@@@@@@@@@@%-::%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%:::%@@@@@@@@@@%::::-
-::::=@@@@@@@@@@@@-::*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#::-%@@@@@@@@@@@=:::=
-::::+@@@@@@@@@@@@*::=@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@=::+@@@@@@@@@@@@*:::=
-::::*@@@@@@@@@@@@@-::+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+:::%@@@@@@@@@@@@#:::-
-::::#@@@@@@@@@@@@@*:::*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*:::+@@@@@@@@@@@@@#::::
-::::#@@@@@@@@@@@@@@=:::=@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+::::%@@@@@@@@@@@@@#::::
-::::*@@@@@@@@@@@@@@@-::::#@@@@@@@@@@@@@@@@@@@@@@@@@@@@%:::::%@@@@@@@@@@@@@@#:::-
-::::+@@@@@@@@@@@@%-:::::::-%@@@@@@@@@@@@@@@@@@@@@@@@%-:::::::*@@@@@@@@@@@@@*:::-
-::::=@@@@@@@@@%=:::::::::::::+@@@@@@@@@@@@@@@@@@@@@@@%-::::::::-#@@@@@@@@@@+:::=
-:::::%@@@@@@+:::::::::::::::::::-+%@@@@@@@@@@%+-:=%@@@@%-:::::::::=%@@@@@@@::::=
- ::::-%@@#-::::::::::::::::::::::::::::::::::::::::=%@@@@%+:::::::::-+%@@@+::::# 
- -::::==::::::::::::-#-::::::::::::::::::::::::::::::-#@@@@@*::::::::::-##::::+ 
-  ::::::::::::::::=@@@@@#-::::::::::::::::::::::::::::::*@@@@@#-:::::::::::::-  
-   :::::::::::::*@@@@@@@@@@@*-:::::::::::::::::::=*:::::::+%@@@@%-:::::::::::*  
-    :::::::::-%@@@@@*::+%@@@@@@@@%#+-:::::-=*%%@@@@@#:::::::-%@@@@%=::::::::%   
-    -::::::+%@@@@%=:::::::-+%@@@@@@@@@@@@@@@@@@@@@%=::::::::::-#@@@@@*:::::=    
-     -:::*@@@@@#-::::::::::::::-=+#%@@@@@@@%#*=-:::::::::::::::#@@@@*:::::+     
-      -*@@@@@*::::::::::::::::::::::::::::::::::::::::::::::-#@@@@%-::::-*      
-        #@%=:::::::::--:::::::::::::::::::::::::::::::::::=%@@@@%=:::::-        
-         :::::::::::#@@@#-:::::::::::::::::::::::::::::=%@@@@@%=::::::+         
-           -:::::::=@@@@@@@@%+:::::::::::::::::::::+%@@@@@@@%-::::::=           
-             :::::::::=%@@@@@@@@@%%%#**+++**#%%%@@@@@@@@@%=:::::::=             
-               -::::::::::=*%@@@@@@@@@@@@@@@@@@@@@@@@%+-::::::::=               
-                 =:::::::::::::-=+*#%%@@@@@@%%#*+=-::::::::::-+                 
-                    =-::::::::::::::::::::::::::::::::::::-+                    
-                        =-::::::::::::::::::::::::::::-*                        
-                              +-::::::::::::::::-+                              
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
 
-*/
+    if (typeof app !== 'undefined' && app) {
+        app.token = null;
+        app.user = {};
+        app.updateProfileDisplay?.();
+    }
+}
 
 // ==================== WORKFLOW FUNCTIONALITY ====================
 
@@ -677,7 +613,7 @@ TodoApp.prototype.saveWorkflowTask = function() {
         this.workflowTasks.push(newTask);
     }
     
-    this.saveWorkflowToStorage();
+    this.saveToStorage();
     this.closeWorkflowTaskModal();
     this.renderWorkflowCanvas();
 };
@@ -689,7 +625,7 @@ TodoApp.prototype.deleteWorkflowTask = function(taskId) {
         this.connections = this.connections.filter(c => 
             c.from !== taskId && c.to !== taskId
         );
-        this.saveWorkflowToStorage();
+        this.saveToStorage();
         this.renderWorkflowCanvas();
     }
 };
@@ -732,7 +668,7 @@ TodoApp.prototype.handleTaskConnection = function(taskId) {
         
         if (!exists) {
             this.connections.push(connection);
-            this.saveWorkflowToStorage();
+            this.saveToStorage();
         }
         
         this.connectionSource = null;
@@ -743,7 +679,7 @@ TodoApp.prototype.handleTaskConnection = function(taskId) {
 TodoApp.prototype.clearAllConnections = function() {
     if (confirm('Clear all connections?')) {
         this.connections = [];
-        this.saveWorkflowToStorage();
+        this.saveToStorage();
         this.renderWorkflowCanvas();
     }
 };
@@ -844,7 +780,7 @@ TodoApp.prototype.makeTaskDraggable = function(taskEl, task) {
         if (isDragging) {
             isDragging = false;
             taskEl.classList.remove('dragging');
-            this.saveWorkflowToStorage();
+            this.saveToStorage();
         }
     };
     
@@ -907,14 +843,67 @@ TodoApp.prototype.renderConnections = function() {
     });
 };
 
-TodoApp.prototype.saveWorkflowToStorage = function() {
+// Override saveToStorage to include workflow data
+const originalSaveToStorage = TodoApp.prototype.saveToStorage;
+TodoApp.prototype.saveToStorage = function() {
+    originalSaveToStorage.call(this);
     localStorage.setItem('workflowTasks', JSON.stringify(this.workflowTasks));
     localStorage.setItem('workflowConnections', JSON.stringify(this.connections));
 };
 
-TodoApp.prototype.loadWorkflowFromStorage = function() {
+// Override loadFromStorage to include workflow data
+const originalLoadFromStorage = TodoApp.prototype.loadFromStorage;
+TodoApp.prototype.loadFromStorage = function() {
+    originalLoadFromStorage.call(this);
     this.workflowTasks = JSON.parse(localStorage.getItem('workflowTasks') || '[]');
     this.connections = JSON.parse(localStorage.getItem('workflowConnections') || '[]');
 };
 
 /*
+
+                              ::::::::::::::::::::                              
+                        -::::::::::::::::::::::::::::::-                        
+                     ::::::::::::::::::::::::::::::::::::::-                    
+                  :::::-+%@@+::::::::::::::::::::::-%#+-::::::-                 
+               :::::=%@@@@@@@-:::::::::::::::::::::%@@@@@%=:::::-               
+             :::::#@@@@@@@@#::::-*%@@@@@@@@@@@*-:::*@@@@@@@@@=::::-             
+           ::::-%@@@@@@@@=:::*@@@@@@@@@@@@@@@@@@@@*:::#@@@@@@@@+::::-           
+         :::::#@@@@@@@@+::-%@@@@@@@@@@@@@@@@@@@@@@@@%-:-#@@@@@@@@+::::=         
+        ::::+@@@@@@@@%-:-%@@@@@@@@@@@@@@@@@@@@@@@@@@@@%-:=%@@@@@@@%-:::-        
+       ::::*@@@@@@@@*::+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+::#@@@@@@@@+::::+      
+     ::::-%@@@@@@@@*::*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*::%@@@@@@@@#::::=     
+    :::::%@@@@@@@@#::+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+::#@@@@@@@@#::::=    
+    ::::%@@@@@@@@@-:=@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@=:=@@@@@@@@@#::::@   
+   ::::*@@@@@@@@@*::*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#::*@@@@@@@@@+::::+  
+  ::::+@@@@@@@@@@-::%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%::-@@@@@@@@@@=:::-  
+ :::::%@@@@@@@@@%-::@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-::%@@@@@@@@@#::::+ 
+ ::::+@@@@@@@@@@%-::@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@:::%@@@@@@@@@@=:::: 
+:::::@@@@@@@@@@@%-::%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%:::%@@@@@@@@@@%::::-
+::::=@@@@@@@@@@@@-::*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#::-%@@@@@@@@@@@=:::=
+::::+@@@@@@@@@@@@*::=@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@=::+@@@@@@@@@@@@*:::=
+::::*@@@@@@@@@@@@@-::+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+:::%@@@@@@@@@@@@#:::-
+::::#@@@@@@@@@@@@@*:::*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*:::+@@@@@@@@@@@@@#::::
+::::#@@@@@@@@@@@@@@=:::=@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+::::%@@@@@@@@@@@@@#::::
+::::*@@@@@@@@@@@@@@@-::::#@@@@@@@@@@@@@@@@@@@@@@@@@@@@%:::::%@@@@@@@@@@@@@@#:::-
+::::+@@@@@@@@@@@@%-:::::::-%@@@@@@@@@@@@@@@@@@@@@@@@%-:::::::*@@@@@@@@@@@@@*:::-
+::::=@@@@@@@@@%=:::::::::::::+@@@@@@@@@@@@@@@@@@@@@@@%-::::::::-#@@@@@@@@@@+:::=
+:::::%@@@@@@+:::::::::::::::::::-+%@@@@@@@@@@%+-:=%@@@@%-:::::::::=%@@@@@@@::::=
+ ::::-%@@#-::::::::::::::::::::::::::::::::::::::::=%@@@@%+:::::::::-+%@@@+::::# 
+ -::::==::::::::::::-#-::::::::::::::::::::::::::::::-#@@@@@*::::::::::-##::::+ 
+  ::::::::::::::::=@@@@@#-::::::::::::::::::::::::::::::*@@@@@#-:::::::::::::-  
+   :::::::::::::*@@@@@@@@@@@*-:::::::::::::::::::=*:::::::+%@@@@%-:::::::::::*  
+    :::::::::-%@@@@@*::+%@@@@@@@@%#+-:::::-=*%%@@@@@#:::::::-%@@@@%=::::::::%   
+    -::::::+%@@@@%=:::::::-+%@@@@@@@@@@@@@@@@@@@@@%=::::::::::-#@@@@@*:::::=    
+     -:::*@@@@@#-::::::::::::::-=+#%@@@@@@@%#*=-:::::::::::::::#@@@@*:::::+     
+      -*@@@@@*::::::::::::::::::::::::::::::::::::::::::::::-#@@@@%-::::-*      
+        #@%=:::::::::--:::::::::::::::::::::::::::::::::::=%@@@@%=:::::-        
+         :::::::::::#@@@#-:::::::::::::::::::::::::::::=%@@@@@%=::::::+         
+           -:::::::=@@@@@@@@%+:::::::::::::::::::::+%@@@@@@@%-::::::=           
+             :::::::::=%@@@@@@@@@%%%#**+++**#%%%@@@@@@@@@%=:::::::=             
+               -::::::::::=*%@@@@@@@@@@@@@@@@@@@@@@@@%+-::::::::=               
+                 =:::::::::::::-=+*#%%@@@@@@%%#*+=-::::::::::-+                 
+                    =-::::::::::::::::::::::::::::::::::::-+                    
+                        =-::::::::::::::::::::::::::::-*                        
+                              +-::::::::::::::::-+                              
+
+*/
