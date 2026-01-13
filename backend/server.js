@@ -30,6 +30,7 @@ if (process.env.MONGODB_URI) {
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/tasks', require('./routes/tasks'));
+app.use('/api/workflow', require('./routes/workflow'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Backend is running!' });
