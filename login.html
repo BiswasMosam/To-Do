@@ -376,6 +376,17 @@
             if (msg) {
                 msg.innerHTML = '<div class="success">Testing backend connection...</div>';
             }
+
+            // If config.js didn't load on a deployed site, API_URL falls back to localhost.
+            // That will always fail on mobile/production, so show a clear hint.
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                if (String(API_URL).includes('http://localhost:5000')) {
+                    if (msg) {
+                        msg.innerHTML = '<div class="error">Config error: API is set to localhost. Use https://mosambiswas.me/To-Do/login.html (not a different path) and hard refresh so config.js loads.</div>';
+                    }
+                    return;
+                }
+            }
             try {
                 const res = await fetch(`${API_URL}/health`, { method: 'GET' });
                 const text = await res.text();
@@ -469,6 +480,11 @@
                 // Redirect to board
                 window.location.href = 'board.html';
             } catch (err) {
+                const apiHint = document.getElementById('apiHint');
+                if (apiHint) {
+                    apiHint.style.display = 'block';
+                    apiHint.textContent = `API: ${API_URL}`;
+                }
                 document.getElementById('registerMessage').innerHTML = 
                     `<div class="error">Connection error: ${err.message}</div>`;
             }
