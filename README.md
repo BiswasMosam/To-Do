@@ -37,6 +37,11 @@ A modern Kanban board with two modes:
 - `backend/server.js` — Express API
 - `backend/routes/*` — auth + tasks endpoints
 
+## Modes
+
+- **Offline mode**: [To-Do/index.html](index.html) + [To-Do/app.js](app.js) (stores tasks in `localStorage`, no backend required)
+- **Account mode**: [To-Do/login.html](login.html) + [To-Do/board.html](board.html) + [To-Do/app-backend.js](app-backend.js) (stores tasks/workflow in MongoDB via the backend API)
+
 ## Local Development
 
 ### 1) Backend
@@ -84,7 +89,10 @@ python -m http.server 8000
    - `MONGODB_URI`
    - `JWT_SECRET`
    - `GOOGLE_CLIENT_ID`
-   - `CORS_ORIGIN=https://biswasmosam.github.io,https://mosambiswas.me`
+
+Notes:
+
+- CORS is currently configured permissively in the backend (suitable for a hobby project). If you want to restrict origins, update [To-Do/backend/server.js](backend/server.js) accordingly.
 
 ### Frontend (GitHub Pages / Custom Domain)
 
@@ -101,6 +109,7 @@ Auth:
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `POST /api/auth/google`
+- `GET /api/auth/me` (JWT required)
 
 Tasks (JWT required):
 
@@ -108,6 +117,11 @@ Tasks (JWT required):
 - `POST /api/tasks`
 - `PUT /api/tasks/:id`
 - `DELETE /api/tasks/:id`
+
+Workflow (JWT required):
+
+- `GET /api/workflow`
+- `POST /api/workflow`
 
 ## Security Notes
 
