@@ -37,8 +37,13 @@
                 <span class="check-icon">✓</span>
                 <span class="logo-text">TO-DO</span>
             </div>
-            <div class="board-view">
-                <span class="board-icon">▦</span> Board view
+            <div class="view-selector">
+                <div class="view-option active" id="boardViewBtn" onclick="app.switchView('board')">
+                    <span class="board-icon">▦</span> Board view
+                </div>
+                <div class="view-option" id="workflowViewBtn" onclick="app.switchView('workflow')">
+                    <span class="workflow-icon">⚡</span> Workflow
+                </div>
             </div>
         </div>
 
@@ -65,7 +70,7 @@
     </div>
 
     <div class="main-content">
-        <div class="board">
+        <div class="board" id="boardView">
             <!-- Not Started Column -->
             <div class="column" data-status="not-started">
                 <div class="column-header">
@@ -111,6 +116,25 @@
                 </button>
             </div>
         </div>
+
+        <!-- Workflow Canvas View -->
+        <div class="workflow-canvas" id="workflowView" style="display: none;">
+            <div class="workflow-toolbar">
+                <button class="workflow-btn" id="addWorkflowTaskBtn">
+                    <span>+</span> New Task
+                </button>
+                <button class="workflow-btn" id="toggleConnectionModeBtn">
+                    <span>↔</span> Connect Mode
+                </button>
+                <button class="workflow-btn" id="clearConnectionsBtn">
+                    <span>✕</span> Clear Connections
+                </button>
+            </div>
+            <svg id="connectionsSvg" class="connections-layer"></svg>
+            <div class="canvas-grid" id="canvasGrid">
+                <!-- Workflow tasks will be added here -->
+            </div>
+        </div>
     </div>
 
     <!-- Modal for adding/editing tasks -->
@@ -135,6 +159,20 @@
             <div class="modal-buttons">
                 <button id="saveTaskBtn">Save</button>
                 <button id="cancelTaskBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for adding workflow tasks -->
+    <div id="workflowTaskModal" class="modal">
+        <div class="modal-content">
+            <h2 id="workflowModalTitle">Add Workflow Task</h2>
+            <input type="text" id="workflowTaskInput" placeholder="Enter task name..." />
+            <input type="text" id="workflowTaskEmoji" placeholder="Emoji (optional)" maxlength="2" />
+            <textarea id="workflowTaskDescription" placeholder="Description (optional)" style="width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #444; border-radius: 6px; color: #fff; font-size: 1rem; min-height: 80px; resize: vertical;"></textarea>
+            <div class="modal-buttons">
+                <button id="saveWorkflowTaskBtn">Save</button>
+                <button id="cancelWorkflowTaskBtn">Cancel</button>
             </div>
         </div>
     </div>

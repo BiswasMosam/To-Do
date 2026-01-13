@@ -8,9 +8,20 @@ class TodoApp {
         this.editingTaskId = null;
         this.token = localStorage.getItem('token');
         this.user = this.safeParseJson(localStorage.getItem('user')) || {};
+        
+        // Workflow-specific properties
+        this.workflowTasks = [];
+        this.connections = [];
+        this.currentView = 'board';
+        this.connectionMode = false;
+        this.connectionSource = null;
+        this.draggedTask = null;
+        this.editingWorkflowTaskId = null;
+        
         this.loadFromStorage();
         this.initializeElements();
         this.render();
+        this.initializeWorkflowEventListeners();
     }
 
     safeParseJson(value) {
@@ -494,6 +505,359 @@ function logout() {
         app.updateProfileDisplay?.();
     }
 }
+
+// ==================== WORKFLOW FUNCTIONALITY ====================
+
+TodoApp.prototype.initializeWorkflowEventListeners = function() {
+    // Workflow toolbar buttons
+    const addWorkflowTaskBtn = document.getElementById('addWorkflowTaskBtn');
+    const toggleConnectionModeBtn = document.getElementById('toggleConnectionModeBtn');
+    const clearConnectionsBtn = document.getElementById('clearConnectionsBtn');
+    
+    addWorkflowTaskBtn?.addEventListener('click', () => this.openWorkflowTaskModal());
+    toggleConnectionModeBtn?.addEventListener('click', () => this.toggleConnectionMode());
+    clearConnectionsBtn?.addEventListener('click', () => this.clearAllConnections());
+    
+    // Workflow task modal buttons
+    const saveWorkflowTaskBtn = document.getElementById('saveWorkflowTaskBtn');
+    const cancelWorkflowTaskBtn = document.getElementById('cancelWorkflowTaskBtn');
+    
+    saveWorkflowTaskBtn?.addEventListener('click', () => this.saveWorkflowTask());
+    cancelWorkflowTaskBtn?.addEventListener('click', () => this.closeWorkflowTaskModal());
+};
+
+TodoApp.prototype.switchView = function(view) {
+    this.currentView = view;
+    const boardView = document.getElementById('boardView');
+    const workflowView = document.getElementById('workflowView');
+    const boardViewBtn = document.getElementById('boardViewBtn');
+    const workflowViewBtn = document.getElementById('workflowViewBtn');
+    
+    if (view === 'board') {
+        boardView.style.display = 'flex';
+        workflowView.style.display = 'none';
+        boardViewBtn.classList.add('active');
+        workflowViewBtn.classList.remove('active');
+    } else {
+        boardView.style.display = 'none';
+        workflowView.style.display = 'block';
+        boardViewBtn.classList.remove('active');
+        workflowViewBtn.classList.add('active');
+        this.renderWorkflowCanvas();
+    }
+};
+
+TodoApp.prototype.openWorkflowTaskModal = function(taskId = null) {
+    const modal = document.getElementById('workflowTaskModal');
+    const modalTitle = document.getElementById('workflowModalTitle');
+    const taskInput = document.getElementById('workflowTaskInput');
+    const taskEmoji = document.getElementById('workflowTaskEmoji');
+    const taskDescription = document.getElementById('workflowTaskDescription');
+    
+    if (taskId) {
+        const task = this.workflowTasks.find(t => t.id === taskId);
+        if (task) {
+            this.editingWorkflowTaskId = taskId;
+            modalTitle.textContent = 'Edit Workflow Task';
+            taskInput.value = task.title;
+            taskEmoji.value = task.emoji || '';
+            taskDescription.value = task.description || '';
+        }
+    } else {
+        this.editingWorkflowTaskId = null;
+        modalTitle.textContent = 'Add Workflow Task';
+        taskInput.value = '';
+        taskEmoji.value = '';
+        taskDescription.value = '';
+    }
+    
+    modal.classList.add('active');
+    taskInput.focus();
+};
+
+TodoApp.prototype.closeWorkflowTaskModal = function() {
+    const modal = document.getElementById('workflowTaskModal');
+    modal.classList.remove('active');
+    this.editingWorkflowTaskId = null;
+};
+
+TodoApp.prototype.saveWorkflowTask = function() {
+    const taskInput = document.getElementById('workflowTaskInput');
+    const taskEmoji = document.getElementById('workflowTaskEmoji');
+    const taskDescription = document.getElementById('workflowTaskDescription');
+    
+    const title = taskInput.value.trim();
+    if (!title) {
+        alert('Please enter a task name!');
+        return;
+    }
+    
+    if (this.editingWorkflowTaskId) {
+        // Edit existing task
+        const task = this.workflowTasks.find(t => t.id === this.editingWorkflowTaskId);
+        if (task) {
+            task.title = title;
+            task.emoji = taskEmoji.value.trim();
+            task.description = taskDescription.value.trim();
+        }
+    } else {
+        // Create new task
+        const newTask = {
+            id: Date.now().toString(),
+            title: title,
+            emoji: taskEmoji.value.trim(),
+            description: taskDescription.value.trim(),
+            x: 100 + Math.random() * 200,
+            y: 100 + Math.random() * 200
+        };
+        this.workflowTasks.push(newTask);
+    }
+    
+    this.saveToStorage();
+    this.closeWorkflowTaskModal();
+    this.renderWorkflowCanvas();
+};
+
+TodoApp.prototype.deleteWorkflowTask = function(taskId) {
+    if (confirm('Delete this workflow task?')) {
+        this.workflowTasks = this.workflowTasks.filter(t => t.id !== taskId);
+        // Remove connections involving this task
+        this.connections = this.connections.filter(c => 
+            c.from !== taskId && c.to !== taskId
+        );
+        this.saveToStorage();
+        this.renderWorkflowCanvas();
+    }
+};
+
+TodoApp.prototype.toggleConnectionMode = function() {
+    this.connectionMode = !this.connectionMode;
+    const btn = document.getElementById('toggleConnectionModeBtn');
+    const canvasGrid = document.getElementById('canvasGrid');
+    
+    if (this.connectionMode) {
+        btn.classList.add('active');
+        canvasGrid.classList.add('connecting');
+        this.connectionSource = null;
+    } else {
+        btn.classList.remove('active');
+        canvasGrid.classList.remove('connecting');
+        this.connectionSource = null;
+        this.renderWorkflowCanvas();
+    }
+};
+
+TodoApp.prototype.handleTaskConnection = function(taskId) {
+    if (!this.connectionMode) return;
+    
+    if (!this.connectionSource) {
+        this.connectionSource = taskId;
+        const task = document.querySelector(`[data-workflow-id="${taskId}"]`);
+        task.classList.add('connecting-source');
+    } else if (this.connectionSource !== taskId) {
+        // Create connection
+        const connection = {
+            from: this.connectionSource,
+            to: taskId
+        };
+        
+        // Check if connection already exists
+        const exists = this.connections.some(c => 
+            c.from === connection.from && c.to === connection.to
+        );
+        
+        if (!exists) {
+            this.connections.push(connection);
+            this.saveToStorage();
+        }
+        
+        this.connectionSource = null;
+        this.renderWorkflowCanvas();
+    }
+};
+
+TodoApp.prototype.clearAllConnections = function() {
+    if (confirm('Clear all connections?')) {
+        this.connections = [];
+        this.saveToStorage();
+        this.renderWorkflowCanvas();
+    }
+};
+
+TodoApp.prototype.renderWorkflowCanvas = function() {
+    const canvasGrid = document.getElementById('canvasGrid');
+    const svg = document.getElementById('connectionsSvg');
+    
+    // Clear canvas
+    canvasGrid.innerHTML = '';
+    svg.innerHTML = '';
+    
+    // Render tasks
+    this.workflowTasks.forEach(task => {
+        const taskEl = document.createElement('div');
+        taskEl.className = 'workflow-task';
+        taskEl.setAttribute('data-workflow-id', task.id);
+        taskEl.style.left = task.x + 'px';
+        taskEl.style.top = task.y + 'px';
+        
+        const isSource = this.connectionMode && this.connectionSource === task.id;
+        if (isSource) {
+            taskEl.classList.add('connecting-source');
+        }
+        
+        taskEl.innerHTML = `
+            <div class="workflow-task-actions">
+                <button class="workflow-task-btn edit" onclick="app.openWorkflowTaskModal('${task.id}')">✎</button>
+                <button class="workflow-task-btn delete" onclick="app.deleteWorkflowTask('${task.id}')">✕</button>
+            </div>
+            <div class="workflow-task-header">
+                <div class="workflow-task-title">
+                    ${task.emoji ? `<span class="workflow-task-emoji">${task.emoji}</span>` : ''}
+                    <span>${task.title}</span>
+                </div>
+            </div>
+            ${task.description ? `<div class="workflow-task-description">${task.description}</div>` : ''}
+            <div class="workflow-task-connection-point left" data-direction="left"></div>
+            <div class="workflow-task-connection-point right" data-direction="right"></div>
+            <div class="workflow-task-connection-point top" data-direction="top"></div>
+            <div class="workflow-task-connection-point bottom" data-direction="bottom"></div>
+        `;
+        
+        // Make task draggable
+        this.makeTaskDraggable(taskEl, task);
+        
+        // Add click handler for connection mode
+        taskEl.addEventListener('click', (e) => {
+            if (this.connectionMode && !e.target.closest('.workflow-task-btn')) {
+                this.handleTaskConnection(task.id);
+            }
+        });
+        
+        canvasGrid.appendChild(taskEl);
+    });
+    
+    // Render connections
+    this.renderConnections();
+};
+
+TodoApp.prototype.makeTaskDraggable = function(taskEl, task) {
+    let isDragging = false;
+    let startX, startY, initialX, initialY;
+    
+    const onMouseDown = (e) => {
+        if (e.target.closest('.workflow-task-btn') || 
+            e.target.closest('.workflow-task-connection-point') ||
+            this.connectionMode) {
+            return;
+        }
+        
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        initialX = task.x;
+        initialY = task.y;
+        
+        taskEl.classList.add('dragging');
+        e.preventDefault();
+    };
+    
+    const onMouseMove = (e) => {
+        if (!isDragging) return;
+        
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        
+        task.x = Math.max(0, initialX + dx);
+        task.y = Math.max(0, initialY + dy);
+        
+        taskEl.style.left = task.x + 'px';
+        taskEl.style.top = task.y + 'px';
+        
+        this.renderConnections();
+    };
+    
+    const onMouseUp = () => {
+        if (isDragging) {
+            isDragging = false;
+            taskEl.classList.remove('dragging');
+            this.saveToStorage();
+        }
+    };
+    
+    taskEl.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+};
+
+TodoApp.prototype.renderConnections = function() {
+    const svg = document.getElementById('connectionsSvg');
+    svg.innerHTML = '';
+    
+    // Create arrow marker
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    marker.setAttribute('id', 'arrowhead');
+    marker.setAttribute('markerWidth', '10');
+    marker.setAttribute('markerHeight', '10');
+    marker.setAttribute('refX', '9');
+    marker.setAttribute('refY', '3');
+    marker.setAttribute('orient', 'auto');
+    
+    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    polygon.setAttribute('points', '0 0, 10 3, 0 6');
+    polygon.classList.add('connection-arrow');
+    
+    marker.appendChild(polygon);
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+    
+    this.connections.forEach(conn => {
+        const fromTask = this.workflowTasks.find(t => t.id === conn.from);
+        const toTask = this.workflowTasks.find(t => t.id === conn.to);
+        
+        if (!fromTask || !toTask) return;
+        
+        const fromEl = document.querySelector(`[data-workflow-id="${conn.from}"]`);
+        const toEl = document.querySelector(`[data-workflow-id="${conn.to}"]`);
+        
+        if (!fromEl || !toEl) return;
+        
+        const fromRect = fromEl.getBoundingClientRect();
+        const toRect = toEl.getBoundingClientRect();
+        const canvasRect = svg.getBoundingClientRect();
+        
+        const x1 = fromRect.left + fromRect.width / 2 - canvasRect.left;
+        const y1 = fromRect.top + fromRect.height / 2 - canvasRect.top;
+        const x2 = toRect.left + toRect.width / 2 - canvasRect.left;
+        const y2 = toRect.top + toRect.height / 2 - canvasRect.top;
+        
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const midX = (x1 + x2) / 2;
+        const d = `M ${x1} ${y1} Q ${midX} ${y1}, ${midX} ${(y1 + y2) / 2} T ${x2} ${y2}`;
+        
+        path.setAttribute('d', d);
+        path.classList.add('connection-line');
+        path.setAttribute('marker-end', 'url(#arrowhead)');
+        
+        svg.appendChild(path);
+    });
+};
+
+// Override saveToStorage to include workflow data
+const originalSaveToStorage = TodoApp.prototype.saveToStorage;
+TodoApp.prototype.saveToStorage = function() {
+    originalSaveToStorage.call(this);
+    localStorage.setItem('workflowTasks', JSON.stringify(this.workflowTasks));
+    localStorage.setItem('workflowConnections', JSON.stringify(this.connections));
+};
+
+// Override loadFromStorage to include workflow data
+const originalLoadFromStorage = TodoApp.prototype.loadFromStorage;
+TodoApp.prototype.loadFromStorage = function() {
+    originalLoadFromStorage.call(this);
+    this.workflowTasks = JSON.parse(localStorage.getItem('workflowTasks') || '[]');
+    this.connections = JSON.parse(localStorage.getItem('workflowConnections') || '[]');
+};
 
 /*
 
