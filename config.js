@@ -3,7 +3,7 @@
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         window.TODO_API_URL = 'http://localhost:5000/api';
     } else {
-        window.TODO_API_URL = window.location.origin + '/api';
+        window.TODO_API_URL = 'https://to-do-i8ql.onrender.com/api';
     }
 })();
 
