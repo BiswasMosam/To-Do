@@ -28,8 +28,8 @@ class TodoApp {
         }
 
         this.initializeElements();
+        this.ensureUserLoaded();
         this.loadTasks();
-        this.initializeWorkflowEventListeners();
     }
 
     // Initialize DOM elements
@@ -53,28 +53,68 @@ class TodoApp {
     updateProfileDisplay() {
         const profileSection = document.getElementById('profileSection');
         const signinPrompt = document.getElementById('signinPrompt');
-        
-        if (this.user && this.user.username) {
-            // User is logged in - show profile
-            profileSection.style.display = 'block';
-            signinPrompt.style.display = 'none';
-            
-            // Update profile info
-            const profileName = document.getElementById('profileName');
-            const profileEmail = document.getElementById('profileEmail');
-            const profileAvatar = document.getElementById('profileAvatar');
-            
-            profileName.textContent = this.user.username;
-            profileEmail.textContent = this.user.email || 'user@example.com';
-            
-            // Set avatar initial (first letter of username)
-            const initial = this.user.username.charAt(0).toUpperCase();
-            profileAvatar.textContent = initial;
-        } else {
-            // User is not logged in - show sign in prompt
-            profileSection.style.display = 'none';
-            signinPrompt.style.display = 'block';
+
+        const isSignedIn = !!this.token;
+
+        if (profileSection) profileSection.style.display = isSignedIn ? 'block' : 'none';
+        if (signinPrompt) signinPrompt.style.display = isSignedIn ? 'none' : 'block';
+
+        if (!isSignedIn) return;
+
+        const profileName = document.getElementById('profileName');
+        const profileEmail = document.getElementById('profileEmail');
+        const profileAvatar = document.getElementById('profileAvatar');
+
+        const username = this.user?.username || this.user?.name || 'User';
+        const email = this.user?.email || '';
+
+        if (profileName) profileName.textContent = username;
+        if (profileEmail) profileEmail.textContent = email || '—';
+
+        if (profileAvatar) {
+            const picture = this.user?.picture;
+            if (picture) {
+                profileAvatar.style.backgroundImage = `url('${picture}')`;
+                profileAvatar.style.backgroundSize = 'cover';
+                profileAvatar.style.backgroundPosition = 'center';
+                profileAvatar.textContent = '';
+            } else {
+                profileAvatar.style.backgroundImage = '';
+                const initial = String(username || 'U').charAt(0).toUpperCase();
+                profileAvatar.textContent = initial;
+            }
         }
+    }
+
+    async ensureUserLoaded() {
+        // If login page didn't store user details correctly (or storage got cleared),
+        // hydrate from backend using the JWT.
+        if (!this.token) return;
+        if (this.user && (this.user.username || this.user.email)) {
+            this.updateProfileDisplay();
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_URL}/auth/me`, {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data && data.user) {
+                this.user = data.user;
+                localStorage.setItem('user', JSON.stringify(data.user));
+                this.updateProfileDisplay();
+            }
+        } catch {
+            // Ignore and keep fallback UI
+        }
+    }
+
+    logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
     }
 
     // Load tasks from backend
@@ -465,10 +505,22 @@ function logout() {
 
 // Initialize the app when DOM is ready
 let app;
-document.addEventListener('DOMContentLoaded', () => {
-    app = new TodoApp();
+function bootstrapTodoApp() {
+    try {
+        app = new TodoApp();
+        window.app = app;
+    } catch (err) {
+        console.error('App bootstrap failed:', err);
+        alert(`App failed to start: ${err?.message || err}`);
+        return;
+    }
 
-    if (!app.token) return; // Exit if no token
+    if (!app || !app.token) return; // Exit if no token
+
+    // Workflow listeners depend on prototype extensions defined later in this file.
+    if (typeof app.initializeWorkflowEventListeners === 'function') {
+        app.initializeWorkflowEventListeners();
+    }
 
     // Close modal on escape key
     document.addEventListener('keydown', (e) => {
@@ -519,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cancelGroupBtn')?.addEventListener('click', () => {
         app.hideNewGroupInput();
     });
-});
+}
 
 /*
 
@@ -908,13 +960,17 @@ TodoApp.prototype.renderConnections = function() {
 };
 
 TodoApp.prototype.saveWorkflowToStorage = function() {
-    localStorage.setItem('workflowTasks', JSON.stringify(this.workflowTasks));
-    localStorage.setItem('workflowConnections', JSON.stringify(this.connections));
+    // Backend mode: persist workflow to server
+    this.saveToStorage();
 };
 
 TodoApp.prototype.loadWorkflowFromStorage = function() {
-    this.workflowTasks = JSON.parse(localStorage.getItem('workflowTasks') || '[]');
-    this.connections = JSON.parse(localStorage.getItem('workflowConnections') || '[]');
+    // Backend mode: workflow is loaded via loadTasks()
 };
 
-/*
+// Run bootstrap even if DOMContentLoaded already fired (e.g. cached BFCache restores)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrapTodoApp);
+} else {
+    bootstrapTodoApp();
+}

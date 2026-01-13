@@ -2,6 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { OAuth2Client } = require('google-auth-library');
+const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -163,6 +164,28 @@ router.post('/google', async (req, res) => {
       message: 'Google login successful',
       token,
       user: { id: user._id, username: user.username, email: user.email, picture: user.picture }
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Get current user
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('_id username email provider picture');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        provider: user.provider,
+        picture: user.picture
+      }
     });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

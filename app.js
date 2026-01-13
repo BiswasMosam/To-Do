@@ -65,7 +65,7 @@ class TodoApp {
             const profileAvatar = document.getElementById('profileAvatar');
             
             profileName.textContent = this.user.username;
-            profileEmail.textContent = this.user.email || 'user@example.com';
+            profileEmail.textContent = this.user.email || '—';
             
             // Set avatar initial (first letter of username)
             const initial = this.user.username.charAt(0).toUpperCase();
