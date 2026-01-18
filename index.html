@@ -45,6 +45,11 @@
                     <span class="workflow-icon">⚡</span> Workflow
                 </div>
             </div>
+            <div class="tutorial-restart-section">
+                <button class="tutorial-restart-btn" onclick="restartTutorial()" title="Restart Tutorial">
+                    <span>?</span> Tutorial
+                </button>
+            </div>
         </div>
 
         <!-- Profile Section at Bottom (shows when signed in) -->
@@ -198,6 +203,11 @@
             const script = document.createElement('script');
             script.src = 'app-backend.js';
             document.body.appendChild(script);
+            
+            // Load the tutorial system
+            const tutorialScript = document.createElement('script');
+            tutorialScript.src = 'tutorial.js';
+            document.body.appendChild(tutorialScript);
         }
     </script>
 </body>

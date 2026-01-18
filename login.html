@@ -354,6 +354,12 @@
 
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
+                
+                // Mark as new user for tutorial if this is a new registration via Google
+                if (data.isNewUser) {
+                    localStorage.setItem('isNewUser', 'true');
+                }
+                
                 window.location.href = 'board.html';
             } catch (err) {
                 const apiHint = document.getElementById('apiHint');
@@ -476,6 +482,9 @@
                 // Save token and user info
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
+                
+                // Mark as new user for tutorial
+                localStorage.setItem('isNewUser', 'true');
 
                 // Redirect to board
                 window.location.href = 'board.html';

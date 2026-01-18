@@ -517,6 +517,15 @@ function bootstrapTodoApp() {
 
     if (!app || !app.token) return; // Exit if no token
 
+    // Initialize tutorial system
+    if (typeof TutorialSystem !== 'undefined') {
+        window.tutorial = new TutorialSystem(app);
+        // Start tutorial after a short delay to let UI settle
+        setTimeout(() => {
+            window.tutorial.start();
+        }, 1000);
+    }
+
     // Workflow listeners depend on prototype extensions defined later in this file.
     if (typeof app.initializeWorkflowEventListeners === 'function') {
         app.initializeWorkflowEventListeners();
