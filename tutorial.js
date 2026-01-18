@@ -231,34 +231,59 @@ class TutorialSystem {
         
         const rect = targetEl.getBoundingClientRect();
         const dialogWidth = 400;
-        const dialogHeight = 250;
-        const spacing = 20;
+        const dialogHeight = 260;
+        const spacing = 16;
+        const margin = 12;
         
         dialog.style.position = 'fixed';
         dialog.style.maxWidth = `${dialogWidth}px`;
-        
-        switch (position) {
-            case 'top':
-                dialog.style.left = `${rect.left + rect.width / 2}px`;
-                dialog.style.top = `${rect.top - dialogHeight - spacing}px`;
-                dialog.style.transform = 'translateX(-50%)';
-                break;
-            case 'bottom':
-                dialog.style.left = `${rect.left + rect.width / 2}px`;
-                dialog.style.top = `${rect.bottom + spacing}px`;
-                dialog.style.transform = 'translateX(-50%)';
-                break;
-            case 'left':
-                dialog.style.left = `${rect.left - dialogWidth - spacing}px`;
-                dialog.style.top = `${rect.top + rect.height / 2}px`;
-                dialog.style.transform = 'translateY(-50%)';
-                break;
-            case 'right':
-                dialog.style.left = `${rect.right + spacing}px`;
-                dialog.style.top = `${rect.top + rect.height / 2}px`;
-                dialog.style.transform = 'translateY(-50%)';
-                break;
+
+        const viewportW = window.innerWidth;
+        const viewportH = window.innerHeight;
+
+        const setPos = (leftPx, topPx) => {
+            const clampedLeft = Math.max(margin, Math.min(leftPx, viewportW - dialogWidth - margin));
+            const clampedTop = Math.max(margin, Math.min(topPx, viewportH - dialogHeight - margin));
+            dialog.style.left = `${clampedLeft}px`;
+            dialog.style.top = `${clampedTop}px`;
+            dialog.style.transform = 'none';
+        };
+
+        // Preferred placement
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const candidates = {
+            top: { left: centerX - dialogWidth / 2, top: rect.top - dialogHeight - spacing },
+            bottom: { left: centerX - dialogWidth / 2, top: rect.bottom + spacing },
+            left: { left: rect.left - dialogWidth - spacing, top: centerY - dialogHeight / 2 },
+            right: { left: rect.right + spacing, top: centerY - dialogHeight / 2 }
+        };
+
+        const scorePlacement = (p) => {
+            // Higher score is better; penalize off-screen
+            const offLeft = Math.max(0, margin - p.left);
+            const offTop = Math.max(0, margin - p.top);
+            const offRight = Math.max(0, (p.left + dialogWidth + margin) - viewportW);
+            const offBottom = Math.max(0, (p.top + dialogHeight + margin) - viewportH);
+            const offPenalty = offLeft + offTop + offRight + offBottom;
+            return -offPenalty;
+        };
+
+        const preferred = candidates[position] || candidates.bottom;
+        const fallbacks = ['bottom', 'top', 'right', 'left']
+            .filter((p) => p !== position)
+            .map((p) => ({ key: p, val: candidates[p] }));
+
+        let best = { key: position, val: preferred, score: scorePlacement(preferred) };
+        for (const fb of fallbacks) {
+            const score = scorePlacement(fb.val);
+            if (score > best.score) {
+                best = { key: fb.key, val: fb.val, score };
+            }
         }
+
+        setPos(best.val.left, best.val.top);
     }
     
     // Handle step-specific actions
@@ -288,7 +313,8 @@ class TutorialSystem {
         
         const checkModal = () => {
             const modal = document.getElementById('taskModal');
-            if (modal && modal.style.display !== 'none') {
+            const isOpen = !!modal && modal.classList.contains('active');
+            if (isOpen) {
                 nextBtn.disabled = false;
                 nextBtn.style.opacity = '1';
                 nextBtn.textContent = 'Next';
@@ -307,21 +333,43 @@ class TutorialSystem {
         nextBtn.disabled = true;
         nextBtn.style.opacity = '0.5';
         nextBtn.textContent = 'Waiting for task...';
-        
-        const initialTaskCount = this.app.tasks.length;
-        
-        const checkTaskCreated = () => {
-            if (this.app.tasks.length > initialTaskCount) {
+
+        const modal = document.getElementById('taskModal');
+        const saveBtn = document.getElementById('saveTaskBtn');
+
+        // Snapshot tasks at step start
+        const initialIds = new Set((this.app.tasks || []).map(t => t?._id).filter(Boolean));
+        let saveClicked = false;
+        let sawModalOpen = false;
+
+        const onSave = () => {
+            saveClicked = true;
+            nextBtn.textContent = 'Saving...';
+        };
+
+        // Use capture so we see it even if save handler stops propagation
+        saveBtn?.addEventListener('click', onSave, true);
+
+        const check = () => {
+            const isOpen = !!modal && modal.classList.contains('active');
+            if (isOpen) sawModalOpen = true;
+
+            const hasNewTask = (this.app.tasks || []).some(t => t?._id && !initialIds.has(t._id));
+
+            // Advance only after user clicked Save, modal closed, and new task exists
+            if (saveClicked && sawModalOpen && !isOpen && hasNewTask) {
+                saveBtn?.removeEventListener('click', onSave, true);
                 nextBtn.disabled = false;
                 nextBtn.style.opacity = '1';
                 nextBtn.textContent = 'Next';
-                setTimeout(() => this.nextStep(), 500);
-            } else {
-                setTimeout(checkTaskCreated, 100);
+                setTimeout(() => this.nextStep(), 300);
+                return;
             }
+
+            setTimeout(check, 150);
         };
-        
-        checkTaskCreated();
+
+        check();
     }
     
     // Wait for view switch
@@ -404,10 +452,22 @@ class TutorialSystem {
 
 // Global function to restart tutorial
 function restartTutorial() {
+    // If tutorial instance exists, restart it
     if (window.tutorial) {
         window.tutorial.reset();
         window.tutorial.start();
+        return;
     }
+
+    // If app exists and TutorialSystem is loaded, create it on demand
+    if (window.app && typeof TutorialSystem !== 'undefined') {
+        window.tutorial = new TutorialSystem(window.app);
+        window.tutorial.reset();
+        window.tutorial.start();
+        return;
+    }
+
+    alert('Tutorial is still loading. Please try again in a moment.');
 }
 /*
 

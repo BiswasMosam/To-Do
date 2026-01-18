@@ -1162,8 +1162,9 @@ body {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.75);
-    z-index: 9998;
+    z-index: 9990;
     backdrop-filter: blur(2px);
+    pointer-events: none;
 }
 
 .tutorial-dialog {
@@ -1307,7 +1308,7 @@ body {
 /* Tutorial highlight effect */
 .tutorial-highlight {
     position: relative;
-    z-index: 9997 !important;
+    z-index: 9995 !important;
     box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.5),
                 0 0 0 8px rgba(102, 126, 234, 0.2),
                 0 0 30px rgba(102, 126, 234, 0.3) !important;

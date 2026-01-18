@@ -517,13 +517,27 @@ function bootstrapTodoApp() {
 
     if (!app || !app.token) return; // Exit if no token
 
-    // Initialize tutorial system
-    if (typeof TutorialSystem !== 'undefined') {
-        window.tutorial = new TutorialSystem(app);
+    // Initialize tutorial system (tutorial.js may load before/after this file)
+    const initTutorialOnce = () => {
+        if (!window.app) return;
+        if (window.tutorial) return;
+        if (typeof TutorialSystem === 'undefined') return;
+
+        window.tutorial = new TutorialSystem(window.app);
         // Start tutorial after a short delay to let UI settle
-        setTimeout(() => {
-            window.tutorial.start();
-        }, 1000);
+        setTimeout(() => window.tutorial?.start(), 600);
+    };
+
+    initTutorialOnce();
+    if (!window.tutorial) {
+        // Poll briefly in case tutorial.js loads after app-backend.js
+        const startedAt = Date.now();
+        const timer = setInterval(() => {
+            initTutorialOnce();
+            if (window.tutorial || Date.now() - startedAt > 5000) {
+                clearInterval(timer);
+            }
+        }, 100);
     }
 
     // Workflow listeners depend on prototype extensions defined later in this file.

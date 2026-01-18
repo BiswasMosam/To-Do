@@ -199,14 +199,14 @@
         if (!localStorage.getItem('token')) {
             window.location.href = 'login.html';
         } else {
-            // Load the backend application script
-            const script = document.createElement('script');
-            script.src = 'app-backend.js';
-            document.body.appendChild(script);
-            
-            // Load the tutorial system
+            // Load tutorial first, then app (app bootstraps tutorial)
             const tutorialScript = document.createElement('script');
             tutorialScript.src = 'tutorial.js';
+            tutorialScript.onload = () => {
+                const script = document.createElement('script');
+                script.src = 'app-backend.js';
+                document.body.appendChild(script);
+            };
             document.body.appendChild(tutorialScript);
         }
     </script>
