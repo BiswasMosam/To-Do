@@ -1,50 +1,65 @@
-# To-Do Kanban Board (Full Stack)
+# Live demo → https://mosambiswas.me/To-Do/
 
-Live site:
+# To‑Do — Kanban Board (Offline + Account)
 
-- https://mosambiswas.me/To-Do/
-- https://biswasmosam.github.io/To-Do/
+Welcome! This repo is where I’m building and polishing a Trello‑style Kanban To‑Do app while practicing real-world frontend + backend patterns.
 
-Backend (health check):
+It includes two ways to use the app:
 
-- https://to-do-i8qi.onrender.com/api/health
+- **Offline mode**: fast, zero-login board that saves to `localStorage`
+- **Account mode**: login + Google Sign‑In, backed by an API and MongoDB so your tasks persist across devices
 
-A modern Kanban board with two modes:
+Also available:
 
-- **Offline mode**: `index.html` + `app.js` (stores tasks in `localStorage`)
-- **Account mode**: `login.html` + `board.html` + backend API (stores tasks in MongoDB, supports Google Sign-In)
+- GitHub Pages mirror: https://biswasmosam.github.io/To-Do/
+- Backend health check: https://to-do-i8qi.onrender.com/api/health
 
-## Features
+## What you can do
 
-- Kanban workflow: Not Started → In Progress → Done
-- Task groups + emoji support
-- Drag & drop
-- Authentication (register/login) + Google Sign-In
-- Cloud persistence (MongoDB) for logged-in users
-- Responsive UI
+- Manage tasks across a Kanban workflow: **Not Started → In Progress → Done**
+- Drag & drop tasks between columns
+- Create task groups (with emoji support)
+- Use it offline (no backend needed)
+- Sign in and sync tasks to the cloud (MongoDB)
 
-## Project Layout
+## Tech stack
 
 **Frontend**
 
-- `index.html` / `app.js` — offline board (localStorage)
-- `login.html` — login/register + Google Sign-In
-- `board.html` / `app-backend.js` — authenticated board (API)
-- `config.js` — single place to configure the API base URL
+- HTML + CSS
+- Vanilla JavaScript
+- Browser Drag & Drop API
+- `localStorage` for offline persistence
+
+**Backend**
+
+- Node.js + Express
+- MongoDB + Mongoose
+- JWT auth
+- Google Sign‑In (Google Identity)
+
+**Hosting / Deployment**
+
+- Frontend: GitHub Pages + custom domain
+- Backend: Render
+
+## Project layout (quick map)
+
+**Frontend**
+
+- `index.html` + `app.js` — offline board (localStorage)
+- `login.html` — login/register + Google Sign‑In
+- `board.html` + `app-backend.js` — authenticated board (API + MongoDB)
+- `config.js` — API base URL (dev vs prod)
 
 **Backend**
 
 - `backend/server.js` — Express API
-- `backend/routes/*` — auth + tasks endpoints
+- `backend/routes/*` — auth + tasks/workflow endpoints
 
-## Modes
+## Run it locally
 
-- **Offline mode**: [To-Do/index.html](index.html) + [To-Do/app.js](app.js) (stores tasks in `localStorage`, no backend required)
-- **Account mode**: [To-Do/login.html](login.html) + [To-Do/board.html](board.html) + [To-Do/app-backend.js](app-backend.js) (stores tasks/workflow in MongoDB via the backend API)
-
-## Local Development
-
-### 1) Backend
+### 1) Start the backend API
 
 ```bash
 cd backend
@@ -61,7 +76,7 @@ GOOGLE_CLIENT_ID=<your-google-web-client-id>.apps.googleusercontent.com
 NODE_ENV=development
 ```
 
-Start the API:
+Run:
 
 ```bash
 npm run dev
@@ -69,9 +84,9 @@ npm run dev
 npm start
 ```
 
-### 2) Frontend
+### 2) Serve the frontend
 
-Serve the folder (recommended):
+From the project root (this folder):
 
 ```bash
 python -m http.server 8000
@@ -80,29 +95,11 @@ python -m http.server 8000
 - Offline board: `http://localhost:8000/index.html`
 - Login + backend board: `http://localhost:8000/login.html`
 
-## Deployment
+## Configuration
 
-### Backend (Render)
+`config.js` controls which API base URL the frontend uses (localhost for development, Render in production).
 
-1. Deploy `backend/` as a Render Web Service
-2. Set environment variables:
-   - `MONGODB_URI`
-   - `JWT_SECRET`
-   - `GOOGLE_CLIENT_ID`
-
-Notes:
-
-- CORS is currently configured permissively in the backend (suitable for a hobby project). If you want to restrict origins, update [To-Do/backend/server.js](backend/server.js) accordingly.
-
-### Frontend (GitHub Pages / Custom Domain)
-
-Update `config.js` to point production to your backend:
-
-- `https://to-do-i8qi.onrender.com/api`
-
-Then push to `main` so GitHub Pages publishes it.
-
-## API (Quick Reference)
+## API (short reference)
 
 Auth:
 
@@ -111,20 +108,16 @@ Auth:
 - `POST /api/auth/google`
 - `GET /api/auth/me` (JWT required)
 
-Tasks (JWT required):
+Tasks + workflow (JWT required):
 
 - `GET /api/tasks`
 - `POST /api/tasks`
 - `PUT /api/tasks/:id`
 - `DELETE /api/tasks/:id`
-
-Workflow (JWT required):
-
 - `GET /api/workflow`
 - `POST /api/workflow`
 
-## Security Notes
+## Notes
 
-- Never commit real secrets (`.env` is ignored)
-- Use a strong `JWT_SECRET`
-- Keep MongoDB Network Access restricted in production (avoid `0.0.0.0/0` long-term)
+- Secrets live in `backend/.env` (don’t commit real keys)
+- MongoDB Network Access should be restricted for production use
