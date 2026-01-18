@@ -143,8 +143,8 @@ class TutorialSystem {
     }
     
     // Start the tutorial
-    start() {
-        if (!this.shouldShowTutorial()) {
+    start(force = false) {
+        if (!force && !this.shouldShowTutorial()) {
             return;
         }
         
@@ -156,6 +156,18 @@ class TutorialSystem {
         
         // Remove the new user flag
         localStorage.removeItem('isNewUser');
+    }
+
+    // Hide overlay/dialog + remove highlights (no persistence)
+    hide() {
+        this.isActive = false;
+
+        document.querySelectorAll('.tutorial-highlight').forEach(el => {
+            el.classList.remove('tutorial-highlight');
+        });
+
+        if (this.overlay) this.overlay.style.display = 'none';
+        if (this.dialog) this.dialog.style.display = 'none';
     }
     
     // Show a specific step
@@ -419,17 +431,8 @@ class TutorialSystem {
     
     // Complete tutorial
     complete() {
-        this.isActive = false;
         localStorage.setItem('tutorialCompleted', 'true');
-        
-        // Remove highlights
-        document.querySelectorAll('.tutorial-highlight').forEach(el => {
-            el.classList.remove('tutorial-highlight');
-        });
-        
-        // Hide overlay and dialog
-        this.overlay.style.display = 'none';
-        this.dialog.style.display = 'none';
+        this.hide();
         
         // Show completion message
         if (this.currentStep === this.steps.length - 1) {
@@ -446,7 +449,9 @@ class TutorialSystem {
     // Reset tutorial (for testing or user request)
     reset() {
         localStorage.removeItem('tutorialCompleted');
-        this.complete();
+        localStorage.removeItem('isNewUser');
+        this.hide();
+        this.currentStep = 0;
     }
 }
 
@@ -455,7 +460,7 @@ function restartTutorial() {
     // If tutorial instance exists, restart it
     if (window.tutorial) {
         window.tutorial.reset();
-        window.tutorial.start();
+        window.tutorial.start(true);
         return;
     }
 
@@ -463,11 +468,18 @@ function restartTutorial() {
     if (window.app && typeof TutorialSystem !== 'undefined') {
         window.tutorial = new TutorialSystem(window.app);
         window.tutorial.reset();
-        window.tutorial.start();
+        window.tutorial.start(true);
         return;
     }
 
     alert('Tutorial is still loading. Please try again in a moment.');
+}
+
+// Ensure global access even in some bundling/caching edge cases
+try {
+    window.restartTutorial = restartTutorial;
+} catch {
+    // ignore
 }
 /*
 
