@@ -41,12 +41,37 @@
         }
 
         .login-container {
+            position: relative;
             background: #1a1a1a;
             padding: 40px;
             border-radius: 12px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             width: 100%;
             max-width: 400px;
+        }
+
+        .backend-status {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #777;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.04), 0 8px 20px rgba(0, 0, 0, 0.35);
+            cursor: help;
+        }
+
+        .backend-status.online {
+            background: #34C759;
+        }
+
+        .backend-status.offline {
+            background: #ff3b30;
+        }
+
+        .backend-status.checking {
+            background: #ffcc00;
         }
 
         .login-header {
@@ -198,6 +223,7 @@
 </head>
 <body>
     <div class="login-container">
+        <div id="backendStatus" class="backend-status checking" role="status" aria-live="polite" aria-label="Backend status: checking" title="Backend status: checking"></div>
         <div class="login-header">
             <h1>
                 <span class="check-icon">✓</span>
@@ -276,6 +302,7 @@
     <script>
         const API_URL = window.TODO_API_URL || 'http://localhost:5000/api';
         const GOOGLE_CLIENT_ID = '367094542116-2hcm8562n7k56esnnp362c3h2igc95c0.apps.googleusercontent.com';
+        const DEBUG_UI = new URLSearchParams(window.location.search).get('debug') === '1' || window.TODO_DEBUG === true;
 
         function toggleForms() {
             document.getElementById('loginForm').style.display = 
@@ -327,7 +354,7 @@
                 window.location.href = 'board.html';
             } catch (err) {
                 const apiHint = document.getElementById('apiHint');
-                if (apiHint) {
+                if (DEBUG_UI && apiHint) {
                     apiHint.style.display = 'block';
                     apiHint.textContent = `API: ${API_URL}`;
                 }
@@ -363,7 +390,7 @@
                 window.location.href = 'board.html';
             } catch (err) {
                 const apiHint = document.getElementById('apiHint');
-                if (apiHint) {
+                if (DEBUG_UI && apiHint) {
                     apiHint.style.display = 'block';
                     apiHint.textContent = `API: ${API_URL}`;
                 }
@@ -373,22 +400,31 @@
         }
 
         async function testBackendConnection() {
-            const apiHint = document.getElementById('apiHint');
+            const statusEl = document.getElementById('backendStatus');
             const msg = document.getElementById('loginMessage');
-            if (apiHint) {
-                apiHint.style.display = 'block';
-                apiHint.textContent = `API: ${API_URL}`;
+
+            // Don't show verbose health-check text in the UI; keep it on hover.
+            if (msg) msg.innerHTML = '';
+
+            if (statusEl) {
+                statusEl.classList.remove('online', 'offline');
+                statusEl.classList.add('checking');
+                statusEl.setAttribute('aria-label', 'Backend status: checking');
+                statusEl.setAttribute('title', `Backend status: checking\nAPI: ${API_URL}`);
             }
-            if (msg) {
-                msg.innerHTML = '<div class="success">Testing backend connection...</div>';
-            }
+            const apiHint = document.getElementById('apiHint');
+            if (apiHint) apiHint.style.display = 'none';
 
             // If config.js didn't load on a deployed site, API_URL falls back to localhost.
             // That will always fail on mobile/production, so show a clear hint.
             if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
                 if (String(API_URL).includes('http://localhost:5000')) {
-                    if (msg) {
-                        msg.innerHTML = '<div class="error">Config error: API is set to localhost. Use https://mosambiswas.me/To-Do/login.html (not a different path) and hard refresh so config.js loads.</div>';
+                    if (statusEl) {
+                        statusEl.classList.remove('checking', 'online');
+                        statusEl.classList.add('offline');
+                        const tip = 'Config error: API is set to localhost. Use https://mosambiswas.me/To-Do/login.html (not a different path) and hard refresh so config.js loads.';
+                        statusEl.setAttribute('aria-label', tip);
+                        statusEl.setAttribute('title', `${tip}\nAPI: ${API_URL}`);
                     }
                     return;
                 }
@@ -397,12 +433,30 @@
                 const res = await fetch(`${API_URL}/health`, { method: 'GET' });
                 const text = await res.text();
                 if (!res.ok) {
-                    if (msg) msg.innerHTML = `<div class="error">Health check failed (${res.status}).</div>`;
+                    if (statusEl) {
+                        statusEl.classList.remove('checking', 'online');
+                        statusEl.classList.add('offline');
+                        const tip = `Backend offline: health check failed (${res.status}).`;
+                        statusEl.setAttribute('aria-label', tip);
+                        statusEl.setAttribute('title', `${tip}\nAPI: ${API_URL}`);
+                    }
                     return;
                 }
-                if (msg) msg.innerHTML = `<div class="success">Backend reachable. ${text}</div>`;
+                if (statusEl) {
+                    statusEl.classList.remove('checking', 'offline');
+                    statusEl.classList.add('online');
+                    const tip = `Backend reachable: ${text}`;
+                    statusEl.setAttribute('aria-label', tip);
+                    statusEl.setAttribute('title', `${tip}\nAPI: ${API_URL}`);
+                }
             } catch (err) {
-                if (msg) msg.innerHTML = `<div class="error">Health check error: ${err.message}</div>`;
+                if (statusEl) {
+                    statusEl.classList.remove('checking', 'online');
+                    statusEl.classList.add('offline');
+                    const tip = `Backend offline: ${err.message}`;
+                    statusEl.setAttribute('aria-label', tip);
+                    statusEl.setAttribute('title', `${tip}\nAPI: ${API_URL}`);
+                }
             }
         }
 
@@ -490,7 +544,7 @@
                 window.location.href = 'board.html';
             } catch (err) {
                 const apiHint = document.getElementById('apiHint');
-                if (apiHint) {
+                if (DEBUG_UI && apiHint) {
                     apiHint.style.display = 'block';
                     apiHint.textContent = `API: ${API_URL}`;
                 }
