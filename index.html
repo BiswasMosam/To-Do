@@ -46,7 +46,7 @@
                 </div>
             </div>
             <div class="tutorial-restart-section">
-                <button class="tutorial-restart-btn" onclick="restartTutorial()" title="Restart Tutorial">
+                <button class="tutorial-restart-btn" type="button" onclick="window.restartTutorial ? window.restartTutorial() : alert('Tutorial failed to load. Please hard refresh (Ctrl+F5).')" title="Restart Tutorial">
                     <span>?</span> Tutorial
                 </button>
             </div>
@@ -201,10 +201,10 @@
         } else {
             // Load tutorial first, then app (app bootstraps tutorial)
             const tutorialScript = document.createElement('script');
-            tutorialScript.src = 'tutorial.js';
+            tutorialScript.src = 'tutorial.js?v=20260118';
             tutorialScript.onload = () => {
                 const script = document.createElement('script');
-                script.src = 'app-backend.js';
+                script.src = 'app-backend.js?v=20260118';
                 document.body.appendChild(script);
             };
             document.body.appendChild(tutorialScript);

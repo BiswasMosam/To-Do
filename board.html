@@ -46,7 +46,7 @@
                 </div>
             </div>
             <div class="tutorial-restart-section">
-                <button class="tutorial-restart-btn" onclick="restartTutorial()" title="Restart Tutorial">
+                <button class="tutorial-restart-btn" type="button" onclick="window.restartTutorial ? window.restartTutorial() : alert('Tutorial failed to load. Please hard refresh (Ctrl+F5).')" title="Restart Tutorial">
                     <span>?</span> Tutorial
                 </button>
             </div>
@@ -200,9 +200,9 @@
             window.location.href = 'login.html';
         }
     </script>
-    <script src="config.js"></script>
-    <script src="tutorial.js"></script>
-    <script src="app-backend.js"></script>
+    <script src="config.js?v=20260118"></script>
+    <script src="tutorial.js?v=20260118"></script>
+    <script src="app-backend.js?v=20260118"></script>
 </body>
 </html>
 <!--
