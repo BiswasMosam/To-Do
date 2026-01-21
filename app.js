@@ -470,6 +470,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!app.token) return; // Exit if no token
 
+    // Auto logout when user closes the tab/window
+    window.addEventListener('beforeunload', () => {
+        // Clear authentication data silently
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        // Optional: Notify backend about logout
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon(API_URL + '/auth/logout', JSON.stringify({}));
+        }
+    });
+
     // Close modal on escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
