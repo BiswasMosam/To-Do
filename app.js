@@ -90,7 +90,10 @@ class TodoApp {
             ]);
 
             if (tasksRes.status === 401 || workflowRes.status === 401) {
-                this.logout();
+                // Token expired or invalid - logout and redirect to login
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = 'login.html';
                 return;
             }
 
@@ -111,7 +114,10 @@ class TodoApp {
             }
         } catch (err) {
             console.error('Error loading data:', err);
-            alert('Failed to load data. Check backend connection.');
+            // Backend connection error - redirect to login
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
         }
     }
 
@@ -456,11 +462,11 @@ class TodoApp {
 
 // Logout function
 function logout() {
-    if (confirm('Are you sure you want to logout?')) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = 'login.html';
-    }
+    // Clear authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    // Redirect to login
+    window.location.href = 'login.html';
 }
 
 // Initialize the app when DOM is ready
