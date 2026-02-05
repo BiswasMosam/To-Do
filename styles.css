@@ -663,6 +663,8 @@ body {
 @media screen and (max-width: 768px) {
     body {
         flex-direction: column;
+        min-height: 100vh;
+        height: 100vh;
     }
 
     /* Sidebar becomes a top bar on mobile */
@@ -805,7 +807,8 @@ body {
         padding-bottom: 70px;
         display: flex;
         flex-direction: column;
-        min-height: calc(100vh - 80px);
+        flex: 1;
+        min-height: 0;
     }
 
     .board {
@@ -919,10 +922,6 @@ body {
         font-size: 0.8rem;
     }
 
-    /* Hide SVG connections on mobile/tablet */
-    #connectionsSvg {
-        display: none !important;
-    }
 }
 
 /* Workflow Canvas Styles */
@@ -1451,13 +1450,9 @@ body {
     .canvas-grid {
         flex: 1;
         overflow: auto;
-        min-height: 300px;
+        min-height: 0;
         width: 100%;
         height: 100%;
-    }
-
-    .connections-layer {
-        display: none;
     }
 
     .workflow-task {
@@ -1551,13 +1546,9 @@ body {
     .canvas-grid {
         flex: 1;
         overflow: auto;
-        min-height: 300px;
+        min-height: 0;
         width: 100%;
         height: 100%;
-    }
-
-    .connections-layer {
-        display: none;
     }
 
     .workflow-task {
@@ -1585,8 +1576,5 @@ body {
         font-size: 0.7rem;
     }
 
-    #connectionsSvg {
-        display: none !important;
-    }
 }
 }
