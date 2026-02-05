@@ -938,7 +938,7 @@ body {
         linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px),
         linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px);
     background-size: 40px 40px;
-    min-height: 500px;
+    min-height: 0;
 }
 
 .workflow-toolbar {
@@ -991,7 +991,7 @@ body {
     touch-action: manipulate;
     z-index: 1;
     width: 100%;
-    min-height: 500px;
+    min-height: 1000px;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
