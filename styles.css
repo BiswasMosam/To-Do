@@ -254,7 +254,12 @@ body {
 .main-content {
     flex: 1;
     padding: 30px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    height: 100vh;
     overflow-x: auto;
+    overflow-y: hidden;
 }
 
 .board {
