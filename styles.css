@@ -678,6 +678,10 @@ body {
 
     .sidebar-top {
         flex: initial;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        width: 100%;
     }
 
     .logo {
@@ -691,8 +695,45 @@ body {
         font-size: 1rem;
     }
 
+    .view-selector {
+        flex-direction: row;
+        gap: 6px;
+        flex: 1;
+    }
+
+    .view-option {
+        flex: 1;
+        padding: 8px;
+        font-size: 0.75rem;
+        min-height: 40px;
+        justify-content: center;
+    }
+
+    .board-icon,
+    .workflow-icon {
+        font-size: 1rem;
+    }
+
     .board-view {
         display: none;
+    }
+
+    /* Tutorial button on mobile */
+    .tutorial-restart-section {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+        margin-left: auto;
+    }
+
+    .tutorial-restart-btn {
+        padding: 8px 12px;
+        font-size: 0.75rem;
+        min-width: 40px;
+    }
+
+    .tutorial-restart-btn span {
+        font-size: 1rem;
     }
 
     /* Profile section on mobile */
@@ -886,20 +927,22 @@ body {
         linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px),
         linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px);
     background-size: 40px 40px;
+    display: flex;
+    flex-direction: column;
 }
 
 .workflow-toolbar {
-    position: absolute;
-    top: 20px;
-    left: 20px;
+    position: relative;
     display: flex;
     gap: 10px;
     z-index: 10;
     background: rgba(37, 37, 37, 0.95);
     padding: 15px;
-    border-radius: 8px;
+    border-radius: 0;
     backdrop-filter: blur(10px);
-    border: 1px solid #444;
+    border-bottom: 1px solid #444;
+    flex-wrap: wrap;
+    justify-content: flex-start;
 }
 
 .workflow-btn {
@@ -930,10 +973,12 @@ body {
 
 .canvas-grid {
     position: relative;
-    width: 100%;
-    height: 100%;
+    flex: 1;
     overflow: auto;
     cursor: default;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulate;
 }
 
 .canvas-grid.connecting {
@@ -942,8 +987,8 @@ body {
 
 .workflow-task {
     position: absolute;
-    min-width: 180px;
-    max-width: 250px;
+    min-width: 160px;
+    max-width: 240px;
     background: rgba(42, 42, 42, 0.95);
     border: 2px solid #667eea;
     border-radius: 12px;
@@ -953,6 +998,7 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(10px);
     z-index: 1;
+    touch-action: none;
 }
 
 .workflow-task:hover {
@@ -1014,8 +1060,8 @@ body {
 }
 
 .workflow-task-btn {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1024,10 +1070,11 @@ body {
     border-radius: 50%;
     cursor: pointer;
     color: #fff;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     transition: all 0.2s;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(10px);
+    touch-action: manipulation;
 }
 
 .workflow-task-btn:hover {
@@ -1053,8 +1100,8 @@ body {
 
 .workflow-task-connection-point {
     position: absolute;
-    width: 12px;
-    height: 12px;
+    width: 16px;
+    height: 16px;
     background: #34C759;
     border: 2px solid #fff;
     border-radius: 50%;
@@ -1064,25 +1111,25 @@ body {
 }
 
 .workflow-task-connection-point.left {
-    left: -6px;
+    left: -8px;
     top: 50%;
     transform: translateY(-50%);
 }
 
 .workflow-task-connection-point.right {
-    right: -6px;
+    right: -8px;
     top: 50%;
     transform: translateY(-50%);
 }
 
 .workflow-task-connection-point.top {
-    top: -6px;
+    top: -8px;
     left: 50%;
     transform: translateX(-50%);
 }
 
 .workflow-task-connection-point.bottom {
-    bottom: -6px;
+    bottom: -8px;
     left: 50%;
     transform: translateX(-50%);
 }
@@ -1353,5 +1400,146 @@ body {
     
     .tutorial-btn {
         width: 100%;
+    }
+
+    /* Mobile Workflow Canvas Optimizations */
+    .workflow-canvas {
+        flex-direction: column;
+    }
+
+    .workflow-toolbar {
+        position: relative;
+        top: 0;
+        left: 0;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px;
+        border-radius: 0;
+        justify-content: center;
+    }
+
+    .workflow-btn {
+        flex: 1;
+        min-width: 80px;
+        padding: 12px 10px;
+        font-size: 0.85rem;
+    }
+
+    .canvas-grid {
+        flex: 1;
+        overflow: auto;
+    }
+
+    .workflow-task {
+        min-width: 140px;
+        max-width: 200px;
+        padding: 12px;
+    }
+
+    .workflow-task-header {
+        margin-bottom: 6px;
+    }
+
+    .workflow-task-title {
+        font-size: 0.9rem;
+        gap: 6px;
+    }
+
+    .workflow-task-emoji {
+        font-size: 1rem;
+    }
+
+    .workflow-task-description {
+        font-size: 0.75rem;
+        max-height: 40px;
+    }
+
+    .workflow-task-actions {
+        top: -16px;
+        right: -16px;
+    }
+
+    .workflow-task-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 0.75rem;
+    }
+
+    .workflow-task-connection-point {
+        width: 14px;
+        height: 14px;
+    }
+
+    .workflow-task-connection-point.left {
+        left: -7px;
+    }
+
+    .workflow-task-connection-point.right {
+        right: -7px;
+    }
+
+    .workflow-task-connection-point.top {
+        top: -7px;
+    }
+
+    .workflow-task-connection-point.bottom {
+        bottom: -7px;
+    }
+
+    /* Improve touch targets on mobile */
+    .workflow-task:active {
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
+    }
+}
+
+/* Extra small devices (phones in portrait) */
+@media screen and (max-width: 480px) {
+    .workflow-canvas {
+        flex-direction: column;
+    }
+
+    .workflow-toolbar {
+        padding: 10px;
+        gap: 6px;
+    }
+
+    .workflow-btn {
+        flex: 0 1 calc(50% - 3px);
+        min-width: auto;
+        padding: 10px 8px;
+        font-size: 0.75rem;
+    }
+
+    .workflow-btn span {
+        display: none;
+    }
+
+    .workflow-task {
+        min-width: 120px;
+        max-width: 180px;
+        padding: 10px;
+    }
+
+    .workflow-task-title {
+        font-size: 0.8rem;
+        gap: 4px;
+    }
+
+    .workflow-task-emoji {
+        font-size: 0.9rem;
+    }
+
+    .workflow-task-description {
+        display: none;
+    }
+
+    .workflow-task-btn {
+        width: 26px;
+        height: 26px;
+        font-size: 0.7rem;
+    }
+
+    .connections-layer {
+        display: none;
     }
 }

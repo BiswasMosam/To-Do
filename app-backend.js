@@ -865,12 +865,15 @@ TodoApp.prototype.renderWorkflowCanvas = function() {
         // Make task draggable
         this.makeTaskDraggable(taskEl, task);
         
-        // Add click handler for connection mode
-        taskEl.addEventListener('click', (e) => {
+        // Add click/touch handler for connection mode
+        const handleConnectionClick = (e) => {
             if (this.connectionMode && !e.target.closest('.workflow-task-btn')) {
                 this.handleTaskConnection(task.id);
             }
-        });
+        };
+        
+        taskEl.addEventListener('click', handleConnectionClick);
+        taskEl.addEventListener('touchend', handleConnectionClick);
         
         canvasGrid.appendChild(taskEl);
     });
@@ -883,7 +886,7 @@ TodoApp.prototype.makeTaskDraggable = function(taskEl, task) {
     let isDragging = false;
     let startX, startY, initialX, initialY;
     
-    const onMouseDown = (e) => {
+    const handleDragStart = (clientX, clientY, e) => {
         if (e.target.closest('.workflow-task-btn') || 
             e.target.closest('.workflow-task-connection-point') ||
             this.connectionMode) {
@@ -891,8 +894,8 @@ TodoApp.prototype.makeTaskDraggable = function(taskEl, task) {
         }
         
         isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
+        startX = clientX;
+        startY = clientY;
         initialX = task.x;
         initialY = task.y;
         
@@ -900,11 +903,11 @@ TodoApp.prototype.makeTaskDraggable = function(taskEl, task) {
         e.preventDefault();
     };
     
-    const onMouseMove = (e) => {
+    const handleDragMove = (clientX, clientY) => {
         if (!isDragging) return;
         
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
+        const dx = clientX - startX;
+        const dy = clientY - startY;
         
         task.x = Math.max(0, initialX + dx);
         task.y = Math.max(0, initialY + dy);
@@ -915,7 +918,7 @@ TodoApp.prototype.makeTaskDraggable = function(taskEl, task) {
         this.renderConnections();
     };
     
-    const onMouseUp = () => {
+    const handleDragEnd = () => {
         if (isDragging) {
             isDragging = false;
             taskEl.classList.remove('dragging');
@@ -923,9 +926,44 @@ TodoApp.prototype.makeTaskDraggable = function(taskEl, task) {
         }
     };
     
+    // Mouse events
+    const onMouseDown = (e) => handleDragStart(e.clientX, e.clientY, e);
+    
+    const onMouseMove = (e) => handleDragMove(e.clientX, e.clientY);
+    
+    const onMouseUp = () => handleDragEnd();
+    
+    // Touch events
+    const onTouchStart = (e) => {
+        if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            handleDragStart(touch.clientX, touch.clientY, e);
+        }
+    };
+    
+    const onTouchMove = (e) => {
+        if (e.touches.length === 1 && isDragging) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            handleDragMove(touch.clientX, touch.clientY);
+        }
+    };
+    
+    const onTouchEnd = (e) => {
+        if (e.touches.length === 0) {
+            handleDragEnd();
+        }
+    };
+    
+    // Add all event listeners
     taskEl.addEventListener('mousedown', onMouseDown);
+    taskEl.addEventListener('touchstart', onTouchStart, { passive: false });
+    
     document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    
     document.addEventListener('mouseup', onMouseUp);
+    document.addEventListener('touchend', onTouchEnd);
 };
 
 TodoApp.prototype.renderConnections = function() {
