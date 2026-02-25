@@ -7,6 +7,11 @@ const router = express.Router();
 // Get all tasks for user
 router.get('/', authMiddleware, async (req, res) => {
   try {
+    await Task.updateMany(
+      { userId: req.userId, status: 'done', doneAt: { $exists: false } },
+      { $set: { doneAt: new Date() } }
+    );
+
     const tasks = await Task.find({ userId: req.userId });
     res.json(tasks);
   } catch (err) {
@@ -23,12 +28,15 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Task text required' });
     }
 
+    const taskStatus = status || 'not-started';
+
     const task = new Task({
       userId: req.userId,
       text,
       emoji: emoji || '📝',
-      status: status || 'not-started',
-      group: group || null
+      status: taskStatus,
+      group: group || null,
+      doneAt: taskStatus === 'done' ? new Date() : undefined
     });
 
     await task.save();
@@ -50,7 +58,17 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     if (text) task.text = text;
     if (emoji) task.emoji = emoji;
-    if (status) task.status = status;
+    if (status) {
+      if (status === 'done' && task.status !== 'done') {
+        task.doneAt = new Date();
+      }
+
+      if (status !== 'done') {
+        task.doneAt = undefined;
+      }
+
+      task.status = status;
+    }
     if (group !== undefined) task.group = group;
 
     await task.save();

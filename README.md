@@ -17,6 +17,7 @@ Also available:
 ## What you can do
 
 - Manage tasks across a Kanban workflow: **Not Started → In Progress → Done**
+- Auto-clean completed tasks: items in **Done** are automatically deleted after 7 days
 - Drag & drop tasks between columns
 - Create task groups (with emoji support)
 - Use it offline (no backend needed)

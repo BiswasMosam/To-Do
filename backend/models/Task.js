@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const DONE_TASK_TTL_SECONDS = 7 * 24 * 60 * 60;
+
 const taskSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -23,11 +25,16 @@ const taskSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  doneAt: {
+    type: Date
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
+
+taskSchema.index({ doneAt: 1 }, { expireAfterSeconds: DONE_TASK_TTL_SECONDS });
 
 module.exports = mongoose.model('Task', taskSchema);
 
