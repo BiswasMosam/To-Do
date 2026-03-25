@@ -1,4 +1,4 @@
-# Live demo → https://mosambiswas.me/To-Do/
+# Live demo → https://mosambiswas.com/To-Do/
 
 # To‑Do — Kanban Board (Offline + Account)
 
