@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="favicon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="favicon.png" />
-    <meta name="theme-color" content="#1a1a1a" />
+    <meta name="theme-color" content="#0a0a0b" />
 
     <meta name="description" content="A modern Kanban TO-DO board with task groups, drag & drop, and optional account mode." />
     <meta name="keywords" content="To-Do, Kanban, task board, productivity, Mosam Biswas" />
@@ -28,6 +28,9 @@
     <meta name="twitter:description" content="A modern Kanban board to manage tasks." />
     <meta name="twitter:image" content="https://mosambiswas.com/To-Do/favicon.png" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -75,6 +78,10 @@
     </div>
 
     <div class="main-content">
+        <header class="board-header">
+            <p class="board-eyebrow">Kanban — Personal Board</p>
+            <h1 class="board-title">Tasks<span class="title-dot">.</span></h1>
+        </header>
         <div class="board" id="boardView">
             <!-- Not Started Column -->
             <div class="column" data-status="not-started">
@@ -148,17 +155,17 @@
             <h2 id="modalTitle">Add New Task</h2>
             <input type="text" id="taskInput" placeholder="Enter task name..." />
             <input type="text" id="taskEmoji" placeholder="Emoji (optional)" maxlength="2" />
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <select id="groupSelect" style="flex: 1; padding: 12px; background: #1a1a1a; border: 1px solid #444; border-radius: 6px; color: #fff; font-size: 1rem;">
+            <div class="group-row">
+                <select id="groupSelect">
                     <option value="">No Group</option>
                 </select>
-                <button id="newGroupBtn" style="padding: 12px 20px; background: #34C759; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;">+ Group</button>
+                <button id="newGroupBtn" class="group-add-btn">+ Group</button>
             </div>
-            <div id="newGroupInput" style="display: none; margin-bottom: 15px;">
-                <input type="text" id="newGroupName" placeholder="New group name..." style="width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #444; border-radius: 6px; color: #fff; font-size: 1rem; margin-bottom: 8px;" />
-                <div style="display: flex; gap: 8px;">
-                    <button id="createGroupBtn" style="flex: 1; padding: 8px; background: #34C759; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Create</button>
-                    <button id="cancelGroupBtn" style="flex: 1; padding: 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+            <div id="newGroupInput" class="new-group-input" style="display: none;">
+                <input type="text" id="newGroupName" placeholder="New group name..." />
+                <div class="new-group-actions">
+                    <button id="createGroupBtn" class="confirm">Create</button>
+                    <button id="cancelGroupBtn" class="cancel">Cancel</button>
                 </div>
             </div>
             <div class="modal-buttons">
@@ -174,7 +181,7 @@
             <h2 id="workflowModalTitle">Add Workflow Task</h2>
             <input type="text" id="workflowTaskInput" placeholder="Enter task name..." />
             <input type="text" id="workflowTaskEmoji" placeholder="Emoji (optional)" maxlength="2" />
-            <textarea id="workflowTaskDescription" placeholder="Description (optional)" style="width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #444; border-radius: 6px; color: #fff; font-size: 1rem; min-height: 80px; resize: vertical;"></textarea>
+            <textarea id="workflowTaskDescription" placeholder="Description (optional)"></textarea>
             <div class="modal-buttons">
                 <button id="saveWorkflowTaskBtn">Save</button>
                 <button id="cancelWorkflowTaskBtn">Cancel</button>
