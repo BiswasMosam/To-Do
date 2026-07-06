@@ -23,12 +23,24 @@ Also available:
 - Use it offline (no backend needed)
 - Sign in and sync tasks to the cloud (MongoDB)
 
+## Design
+
+The UI follows an editorial dark design system:
+
+- Near-black canvas with ivory type and hairline borders
+- Electric lime accent, with amber/mint status colors
+- **Space Grotesk** display headings + **Inter** body text (Google Fonts)
+- CSS design tokens (custom properties) drive the whole theme from `styles.css`
+- Board header with eyebrow label and large display title
+- Mobile-friendly: compact top bar with avatar-only profile chip
+
 ## Tech stack
 
 **Frontend**
 
-- HTML + CSS
+- HTML + CSS (design tokens via custom properties)
 - Vanilla JavaScript
+- Google Fonts (Space Grotesk, Inter)
 - Browser Drag & Drop API
 - `localStorage` for offline persistence
 
