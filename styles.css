@@ -1369,6 +1369,7 @@ button {
         flex-direction: column;
         min-height: 100vh;
         height: 100vh;
+        height: 100dvh; /* track the real visible area as browser chrome hides/shows */
     }
 
     /* Sidebar becomes a top bar on mobile.
@@ -1526,25 +1527,42 @@ button {
         flex-direction: column;
         flex: 1;
         min-height: 0;
+        overflow-y: auto;
     }
 
     .board-header {
-        margin-bottom: 18px;
+        margin-bottom: 14px;
     }
 
     .board-title {
-        font-size: 1.9rem;
+        font-size: 1.7rem;
     }
 
+    /* Columns grow with their content and the page scrolls.
+       Without this, flex: 1 + overflow: hidden squeezes all three
+       columns into one viewport and clips the task lists. */
     .board {
         flex-direction: column;
-        gap: 14px;
+        gap: 12px;
+        min-height: 0;
     }
 
     .column {
+        flex: 0 0 auto;
         min-width: 100%;
         width: 100%;
-        padding: 16px 12px 12px;
+        padding: 14px 12px 12px;
+    }
+
+    .cards-container {
+        gap: 8px;
+        margin-bottom: 10px;
+        min-height: 60px;
+    }
+
+    .task-group {
+        padding-left: 10px;
+        margin-bottom: 12px;
     }
 
     .task-card {
